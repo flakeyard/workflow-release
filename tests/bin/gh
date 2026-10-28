@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Stub of gh for tests. GET requests are answered from $FIXTURES/<path> (with
+# "/", "?", "&" and "=" replaced by "_"), or with HTTP 404 when the file is
+# missing; a file containing "HTTP 500" fails like a server error. Other
+# requests and "gh workflow run" are appended to $CALLS.
+set -euo pipefail
+
+key() { echo "${1//[\/?&=]/_}"; }
+
+if [[ $1 == workflow ]]; then
+  shift
+  echo "workflow $*" >>"$CALLS"
+  exit 0
+fi
+[[ $1 == api ]] || {
+  echo "stub gh: unsupported: $*" >&2
+  exit 2
+}
+shift
+
+method="" path="" jq_filter="" fields=() include=false
+while (($#)); do
+  case $1 in
+    -X)
+      method=$2
+      shift 2
+      ;;
+    --jq | -q)
+      jq_filter=$2
+      shift 2
+      ;;
+    -f | -F)
+      fields+=("$2")
+      shift 2
+      ;;
+    -i)
+      include=true
+      shift
+      ;;
+    --silent | --paginate) shift ;;
+    -*)
+      echo "stub gh: unsupported flag $1" >&2
+      exit 2
+      ;;
+    *)
+      path=$1
+      shift
+      ;;
+  esac
+done
+if [[ -z $method ]]; then
+  if ((${#fields[@]})); then method=POST; else method=GET; fi
+fi
+
+if [[ $method != GET ]]; then
+  echo "$method $path ${fields[*]}" >>"$CALLS"
+  exit 0
+fi
+
+file=$FIXTURES/$(key "$path")
+if [[ ! -f $file ]]; then
+  $include && echo "HTTP/2.0 404 Not Found"
+  echo "gh: Not Found (HTTP 404)" >&2
+  exit 1
+fi
+if grep -q 'HTTP 500' "$file"; then
+  echo "gh: Server Error (HTTP 500)" >&2
+  exit 1
+fi
+$include && echo "HTTP/2.0 200 OK"
+if [[ -n $jq_filter ]]; then
+  jq -r "$jq_filter" "$file"
+else
+  cat "$file"
+fi

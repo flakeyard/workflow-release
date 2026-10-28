@@ -1,0 +1,34 @@
+name: Update the release pull request
+description: >-
+  Runs the pull request pass of release-please, retried once after a pause;
+  the pass is idempotent.
+inputs:
+  token:
+    required: true
+  config-file:
+    required: true
+  manifest-file:
+    required: true
+runs:
+  using: composite
+  steps:
+    - id: first
+      continue-on-error: true
+      uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+      with:
+        token: ${{ inputs.token }}
+        config-file: ${{ inputs.config-file }}
+        manifest-file: ${{ inputs.manifest-file }}
+        target-branch: ${{ github.ref_name }}
+        skip-github-release: true
+    - if: steps.first.outcome == 'failure'
+      shell: bash
+      run: sleep 30
+    - if: steps.first.outcome == 'failure'
+      uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+      with:
+        token: ${{ inputs.token }}
+        config-file: ${{ inputs.config-file }}
+        manifest-file: ${{ inputs.manifest-file }}
+        target-branch: ${{ github.ref_name }}
+        skip-github-release: true

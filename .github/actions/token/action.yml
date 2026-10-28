@@ -1,0 +1,27 @@
+name: Token
+description: >-
+  Creates a token of the App given by its client ID, limited to this
+  repository and to contents, issues and pull requests; without an App, it
+  returns GITHUB_TOKEN.
+inputs:
+  app-client-id:
+    description: Client ID of the App, or empty.
+    default: ""
+  private-key:
+    description: Private key of the App.
+    default: ""
+outputs:
+  token:
+    value: ${{ steps.app.outputs.token || github.token }}
+runs:
+  using: composite
+  steps:
+    - id: app
+      if: inputs.app-client-id != ''
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+      with:
+        client-id: ${{ inputs.app-client-id }}
+        private-key: ${{ inputs.private-key }}
+        permission-contents: write
+        permission-issues: write
+        permission-pull-requests: write

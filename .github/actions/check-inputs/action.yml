@@ -1,0 +1,19 @@
+name: Check inputs
+description: Fails unless the App inputs are complete and the run is on a release branch.
+inputs:
+  app-client-id:
+    description: Client ID of the App, or empty.
+    required: true
+  has-key:
+    description: "'true' when APP_PRIVATE_KEY was passed."
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        CLIENT_ID: ${{ inputs.app-client-id }}
+        HAS_KEY: ${{ inputs.has-key }}
+        REF: ${{ github.ref }}
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      run: '"$GITHUB_ACTION_PATH/check-inputs.sh"'

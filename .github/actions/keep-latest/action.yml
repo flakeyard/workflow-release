@@ -1,0 +1,13 @@
+name: Keep the newest release latest
+description: Marks the newest published vX.Y.Z as latest, for releases from release/vN.
+inputs:
+  token:
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ github.repository }}
+      run: '"$GITHUB_ACTION_PATH/keep-latest.sh"'

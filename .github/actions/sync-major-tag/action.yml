@@ -1,0 +1,19 @@
+name: Sync the major tag
+description: >-
+  Moves vX forward to the newest published vX.Y.Z of the major version in the
+  manifest, creating it when missing; v0 follows the pre-releases 0.y.z.
+inputs:
+  token:
+    required: true
+  manifest-file:
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ github.repository }}
+        SHA: ${{ github.sha }}
+        MANIFEST: ${{ inputs.manifest-file }}
+      run: '"$GITHUB_ACTION_PATH/sync-major-tag.sh"'

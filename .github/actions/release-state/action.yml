@@ -1,0 +1,48 @@
+name: Derive the release state
+description: >-
+  Reports whether the run's commit is a published release, from the manifest
+  and the release tag, so that a rerun after a failure reports it again.
+inputs:
+  token:
+    required: true
+  manifest-file:
+    required: true
+  created:
+    description: release_created of release-please in this run.
+    default: ""
+  created-tag:
+    description: tag_name of release-please in this run.
+    default: ""
+outputs:
+  released:
+    value: ${{ steps.state.outputs.released }}
+  tag:
+    value: ${{ steps.state.outputs.tag }}
+  version:
+    value: ${{ steps.state.outputs.version }}
+  major:
+    value: ${{ steps.state.outputs.major }}
+  minor:
+    value: ${{ steps.state.outputs.minor }}
+  patch:
+    value: ${{ steps.state.outputs.patch }}
+  prerelease:
+    value: ${{ steps.state.outputs.prerelease }}
+  sha:
+    value: ${{ steps.state.outputs.sha }}
+  release-url:
+    value: ${{ steps.state.outputs.release-url }}
+runs:
+  using: composite
+  steps:
+    - id: state
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ github.repository }}
+        SHA: ${{ github.sha }}
+        MANIFEST: ${{ inputs.manifest-file }}
+        CREATED: ${{ inputs.created }}
+        CREATED_TAG: ${{ inputs.created-tag }}
+        NEW_BRANCH: ${{ github.event.created }}
+      run: '"$GITHUB_ACTION_PATH/release-state.sh"'

@@ -204,10 +204,28 @@ GitHub-hosted `ubuntu-24.04` runners: the workflow uses their `bash`, `gh` and
 
 ## Development
 
-The workflow releases itself through
+The workflow in
+[`.github/workflows/release.yaml`](.github/workflows/release.yaml) only composes
+steps. Each step's logic is a small composite action in
+[`.github/actions`](.github/actions), released together with the workflow and
+referenced with `$/`:
+
+- `check-inputs`: App inputs and the release branch;
+- `token`: the App token or `GITHUB_TOKEN`;
+- `check-config`: supported release-please configuration;
+- `reconcile`: release pull requests left pending by a failed run;
+- `release-state`: the outputs, derived from the repository;
+- `keep-latest`: the newest release stays latest;
+- `sync-major-tag`: the moving tag `vX`;
+- `release-pr`: the release pull request, with one retry;
+- `dispatch-checks`: checks of the release pull request without an App.
+
+Their scripts share `lib/github.sh` and are tested by `tests/run.sh` with a stub
+of `gh`. The repository releases itself through
 [`release-self.yaml`](.github/workflows/release-self.yaml). Before a pull
-request, run actionlint and zizmor on `.github/workflows`; actionlint does not
-yet know the `$/` syntax and reports it as an error. The design follows
+request, run `tests/run.sh`, shellcheck, shfmt, actionlint and zizmor;
+actionlint does not yet know the `$/` syntax and `queue: max` and reports them
+as errors. The design follows
 [FY-0007](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0007-branching-and-releases.md),
 [FY-0021](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0021-release-bot.md)
 and
@@ -219,9 +237,9 @@ Following
 [FY-0022](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0022-bootstrap.md),
 this repository has no CI checks yet. Until they are released:
 
-- actionlint, zizmor, shellcheck, prettier, markdownlint, typos and REUSE run
-  locally before every pull request; `workflow-check` and the atoms will provide
-  them;
+- `tests/run.sh`, actionlint, zizmor, shellcheck, shfmt, prettier, markdownlint,
+  typos and REUSE run locally before every pull request; `workflow-check` and
+  the atoms will provide them;
 - pull request titles are checked by the reviewer; `workflow-check` will check
   them;
 - OpenSSF Scorecard comes with `workflow-check`.
