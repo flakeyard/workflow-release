@@ -6,8 +6,7 @@ on:
   workflow_call:
     inputs:
       app-client-id:
-        description:
-          Client ID of a GitHub App to act as. Empty uses GITHUB_TOKEN.
+        description: Client ID of a GitHub App to act as. Empty uses GITHUB_TOKEN.
         type: string
         default: ""
       environment:
@@ -154,7 +153,8 @@ jobs:
               (if opt("include-v-in-tag") == false then "include-v-in-tag must not be false" else empty end),
               (if opt("include-component-in-tag") != false then "include-component-in-tag must be false" else empty end),
               (if opt("draft") == true then "draft releases are not supported" else empty end),
-              (if opt("tag-separator") != null then "tag-separator is not supported" else empty end)
+              (if opt("tag-separator") != null then "tag-separator is not supported" else empty end),
+              (if (opt("label") // opt("release-label")) != null then "custom labels are not supported" else empty end)
             ] | .[]' <<<"$config")
           if [[ -n $problems ]]; then
             while IFS= read -r line; do echo "::error file=$CONFIG::$line"; done <<<"$problems"
@@ -163,6 +163,36 @@ jobs:
           jq -e 'has(".")' <<<"$manifest" >/dev/null \
             || { echo "::error file=$MANIFEST::the manifest has no \".\" entry"; exit 1; }
           echo "checked=true" >>"$GITHUB_OUTPUT"
+
+      # If a run failed after creating a release, release-please leaves the
+      # merged pull request labelled pending, and with immutable releases it
+      # cannot recover by itself: recreating the release is refused. Mark such
+      # pull requests as tagged when their release exists.
+      - name: Reconcile merged release pull requests
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          prs=$(gh api --paginate \
+            "repos/$REPO/pulls?state=closed&base=$BASE&sort=updated&direction=desc&per_page=50" \
+            --jq '.[] | select(.merged_at != null)
+              | select(any(.labels[]; .name == "autorelease: pending"))
+              | "\(.number) \(.title)"')
+          while read -r number title; do
+            [[ -n ${number:-} ]] || continue
+            if [[ ! $title =~ release\ ([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+              echo "::warning::#$number is pending but its title has no version"
+              continue
+            fi
+            tag=v${BASH_REMATCH[1]}
+            if gh api "repos/$REPO/releases/tags/$tag" --jq .draft 2>/dev/null | grep -qx false; then
+              gh api --silent -X DELETE "repos/$REPO/issues/$number/labels/autorelease:%20pending"
+              gh api --silent -X POST "repos/$REPO/issues/$number/labels" -f "labels[]=autorelease: tagged"
+              echo "marked #$number as tagged: $tag exists" >>"$GITHUB_STEP_SUMMARY"
+            fi
+          done <<<"$prs"
 
       # Pass 1 of release-please. It can fail after it created the release, so
       # the steps after it run regardless and the job fails at the end.
@@ -188,6 +218,7 @@ jobs:
           MANIFEST: ${{ inputs.manifest-file }}
           CREATED: ${{ steps.rp.outputs.release_created }}
           CREATED_TAG: ${{ steps.rp.outputs.tag_name }}
+          NEW_BRANCH: ${{ github.event.created }}
         run: |
           set -euo pipefail
           # get PATH: print the response; status 0 found, 3 not found, 1 error.
@@ -216,7 +247,11 @@ jobs:
           released=false
           status=0
           commit=$(commit_of "$tag") || status=$?
-          if ((status == 0)); then
+          if [[ $NEW_BRANCH == true && $CREATED != true ]]; then
+            # Creating a branch, such as release/vN at a release, releases
+            # nothing new.
+            echo "::notice::branch created at $SHA; not a new release"
+          elif ((status == 0)); then
             if [[ $commit == "$SHA" ]]; then
               released=true
             elif [[ $CREATED == true && $CREATED_TAG == "$tag" ]]; then
@@ -350,7 +385,11 @@ jobs:
     if: ${{ !cancelled() && needs.release.outputs.checked == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    environment: ${{ inputs.environment }}
+    # The key is needed, but this job deploys nothing; the branch policy of
+    # the environment still applies.
+    environment:
+      name: ${{ inputs.environment }}
+      deployment: false
     concurrency:
       group: flakeyard-release-pr-${{ github.repository }}-${{ github.ref }}
       cancel-in-progress: false

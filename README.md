@@ -182,7 +182,8 @@ are skipped.
   creating a release, the job still sets the outputs, syncs the tags and then
   fails; a rerun completes the remaining work. A rerun of a completed run
   changes nothing but reports its release again, so publishing jobs must be
-  idempotent.
+  idempotent. Creating a branch, such as `release/vN` at a release, is never
+  reported as a release.
 - **Moving tag.** `vX` is created or moved to the newest published,
   non-prerelease `vX.Y.Z` of the major version on the branch, only forward. `v0`
   follows the releases `0.y.z`, which are all pre-releases and carry no
