@@ -59,8 +59,8 @@ a release's publication. Concurrency group names starting with
 ### Configuration
 
 The repository needs a release-please configuration with one root package and
-tags `vX.Y.Z`; the workflow checks this and fails otherwise. For example,
-`release-please-config.json`:
+tags `vX.Y.Z` and the default labels; the workflow checks this and fails
+otherwise. For example, `release-please-config.json`:
 
 ```json
 {
@@ -117,6 +117,8 @@ Leave `app-client-id` empty and omit the secret. Then:
   workflow needs `statuses: write` and must report its result as a commit status
   on the checked commit: `pending` when it starts, then `success` or `failure`.
   Make that status the required check, with GitHub Actions as its source.
+- GitHub may still create a `pull_request` run for the release pull request that
+  waits for approval; it is not needed and ends when the pull request is merged.
 - Tags created with `GITHUB_TOKEN` start no workflows either. Publish in the
   `publish` job of the same run, as shown above.
 - The workflow creates and moves tags with `GITHUB_TOKEN`, so a ruleset cannot
@@ -175,15 +177,19 @@ are skipped.
 - **Jobs.** `Release` creates releases, `Release pull request` updates the
   release pull request, and `Start checks` starts `check-workflow` without an
   App. A failure of a later job does not affect the outputs of `Release`. The
-  pull request update is retried once after 30 seconds.
+  pull request update is retried once after 30 seconds. `Release pull request`
+  uses the environment for the key but creates no deployment.
 - **Reruns.** The outputs are derived from the manifest and the release tag, not
   only from release-please's own outputs, and the latest release and the moving
   tag are synced from the repository's releases. If release-please fails after
   creating a release, the job still sets the outputs, syncs the tags and then
-  fails; a rerun completes the remaining work. A rerun of a completed run
-  changes nothing but reports its release again, so publishing jobs must be
-  idempotent. Creating a branch, such as `release/vN` at a release, is never
-  reported as a release.
+  fails; a rerun completes the remaining work. A merged release pull request
+  left labelled `autorelease: pending` by such a failure is relabelled
+  `autorelease: tagged` once its release exists, since release-please cannot
+  recreate an immutable release by itself. A rerun of a completed run changes
+  nothing but reports its release again, so publishing jobs must be idempotent.
+  Creating a branch, such as `release/vN` at a release, is never reported as a
+  release.
 - **Moving tag.** `vX` is created or moved to the newest published,
   non-prerelease `vX.Y.Z` of the major version on the branch, only forward. `v0`
   follows the releases `0.y.z`, which are all pre-releases and carry no
