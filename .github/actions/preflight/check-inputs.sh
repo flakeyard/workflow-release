@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
-# Fails unless the App inputs are complete and REF is a release branch.
+# Fails unless the run is a push to a release branch and the App inputs are
+# complete.
 set -euo pipefail
-: "${CLIENT_ID?}" "${HAS_KEY:?}" "${REF:?}" "${DEFAULT_BRANCH:?}"
+: "${CLIENT_ID?}" "${HAS_KEY:?}" "${EVENT:?}" "${REF:?}"
 
+if [[ $EVENT != push ]]; then
+  echo "::error::the release workflow runs only on push events, not $EVENT"
+  exit 1
+fi
+: "${DEFAULT_BRANCH:?}"
 if [[ -n $CLIENT_ID && $HAS_KEY != true ]]; then
   echo "::error::app-client-id is set but APP_PRIVATE_KEY is empty;" \
     "pass it under that name and set environment if it is an environment secret"

@@ -81,8 +81,12 @@ and `.release-please-manifest.json`:
 
 Versions `0.y.z` are published as pre-releases, and breaking changes raise their
 minor version. To release `1.0.0`, add `"release-as": "1.0.0"` to the package,
-merge the release pull request, then remove `release-as` again. Draft releases,
-other packages, components in tags and tags without `v` are not supported.
+merge the release pull request, then remove `release-as` again. Not supported,
+and rejected before anything is written: draft releases, other packages,
+components, separate pull requests, tags without `v` or with a custom separator,
+custom labels and pull request title patterns, other versioning strategies and
+`skip-github-release`. On `release/vN`, the manifest's major version must be
+`N`.
 
 Release assets are not supported: with immutable releases, assets can only be
 added before a release is published, and this workflow publishes releases
@@ -199,8 +203,8 @@ are skipped.
 
 ## Requirements
 
-GitHub-hosted `ubuntu-24.04` runners: the workflow uses their `bash`, `gh` and
-`jq`.
+GitHub-hosted `ubuntu-24.04` runners: the workflow uses their `bash`, `gh`,
+`jq`, GNU coreutils (`base64`, `mktemp`, `sort -V`) and GNU `grep`.
 
 ## Development
 
@@ -210,11 +214,12 @@ steps. Each step's logic is a small composite action in
 [`.github/actions`](.github/actions), released together with the workflow and
 referenced with `$/`:
 
-- `check-inputs`: App inputs and the release branch;
+- `preflight`: the event, the release branch, the App inputs and a supported
+  release-please configuration, checked with `GITHUB_TOKEN` before anything is
+  written;
 - `token`: the App token or `GITHUB_TOKEN`;
-- `check-config`: supported release-please configuration;
-- `reconcile`: release pull requests left pending by a failed run;
-- `release-state`: the outputs, derived from the repository;
+- `reconcile-pending-prs`: release pull requests left pending by a failed run;
+- `release-state`: the outputs, derived from the repository, as one JSON object;
 - `keep-latest`: the newest release stays latest;
 - `sync-major-tag`: the moving tag `vX`;
 - `release-pr`: the release pull request, with one retry;

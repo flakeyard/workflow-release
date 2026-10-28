@@ -1,0 +1,38 @@
+name: Preflight
+description: >-
+  Fails before anything is written unless the run is a push to a release
+  branch, the App inputs are complete and the release-please configuration
+  is supported.
+inputs:
+  app-client-id:
+    description: Client ID of the App, or empty.
+    required: true
+  has-key:
+    description: "'true' when APP_PRIVATE_KEY was passed."
+    required: true
+  config-file:
+    required: true
+  manifest-file:
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Check the run
+      shell: bash
+      env:
+        CLIENT_ID: ${{ inputs.app-client-id }}
+        HAS_KEY: ${{ inputs.has-key }}
+        EVENT: ${{ github.event_name }}
+        REF: ${{ github.ref }}
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      run: '"$GITHUB_ACTION_PATH/check-inputs.sh"'
+    - name: Check the release-please configuration
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        SHA: ${{ github.sha }}
+        REF: ${{ github.ref }}
+        CONFIG: ${{ inputs.config-file }}
+        MANIFEST: ${{ inputs.manifest-file }}
+      run: '"$GITHUB_ACTION_PATH/check-config.sh"'

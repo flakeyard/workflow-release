@@ -39,31 +39,31 @@ on:
     outputs:
       released:
         description: "'true' when this run's commit is a published release."
-        value: ${{ jobs.release.outputs.released }}
+        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['released'] }}
       tag:
         description: Release tag, such as v1.2.3.
-        value: ${{ jobs.release.outputs.tag }}
+        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['tag'] }}
       version:
         description: Released version, such as 1.2.3.
-        value: ${{ jobs.release.outputs.version }}
+        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['version'] }}
       major:
         description: Major version of the release.
-        value: ${{ jobs.release.outputs.major }}
+        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['major'] }}
       minor:
         description: Minor version of the release.
-        value: ${{ jobs.release.outputs.minor }}
+        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['minor'] }}
       patch:
         description: Patch version of the release.
-        value: ${{ jobs.release.outputs.patch }}
+        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['patch'] }}
       prerelease:
         description: "'true' when the release is a pre-release (0.y.z)."
-        value: ${{ jobs.release.outputs.prerelease }}
+        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['prerelease'] }}
       sha:
         description: Commit of the release; build published artifacts from it.
-        value: ${{ jobs.release.outputs.sha }}
+        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['sha'] }}
       release-url:
         description: URL of the GitHub release.
-        value: ${{ jobs.release.outputs.release-url }}
+        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['release-url'] }}
 
 permissions: {}
 
@@ -82,21 +82,16 @@ jobs:
       issues: write # release-please labels
       pull-requests: write # release-please comments on the merged pull request
     outputs:
-      checked: ${{ steps.config.outcome == 'success' }}
-      released: ${{ steps.state.outputs.released }}
-      tag: ${{ steps.state.outputs.tag }}
-      version: ${{ steps.state.outputs.version }}
-      major: ${{ steps.state.outputs.major }}
-      minor: ${{ steps.state.outputs.minor }}
-      patch: ${{ steps.state.outputs.patch }}
-      prerelease: ${{ steps.state.outputs.prerelease }}
-      sha: ${{ steps.state.outputs.sha }}
-      release-url: ${{ steps.state.outputs.release-url }}
+      checked: ${{ steps.preflight.outcome == 'success' }}
+      state: ${{ steps.state.outputs.state }}
     steps:
-      - uses: $/.github/actions/check-inputs
+      - id: preflight
+        uses: $/.github/actions/preflight
         with:
           app-client-id: ${{ inputs.app-client-id }}
           has-key: ${{ secrets.APP_PRIVATE_KEY != '' }}
+          config-file: ${{ inputs.config-file }}
+          manifest-file: ${{ inputs.manifest-file }}
 
       - id: token
         uses: $/.github/actions/token
@@ -104,16 +99,10 @@ jobs:
           app-client-id: ${{ inputs.app-client-id }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - id: config
-        uses: $/.github/actions/check-config
+      - uses: $/.github/actions/reconcile-pending-prs
         with:
           token: ${{ steps.token.outputs.token }}
-          config-file: ${{ inputs.config-file }}
           manifest-file: ${{ inputs.manifest-file }}
-
-      - uses: $/.github/actions/reconcile
-        with:
-          token: ${{ steps.token.outputs.token }}
 
       # release-please can fail after creating a release: the steps after it
       # derive everything from the repository, and the job fails at the end.
@@ -135,6 +124,7 @@ jobs:
           manifest-file: ${{ inputs.manifest-file }}
           created: ${{ steps.rp.outputs.release_created }}
           created-tag: ${{ steps.rp.outputs.tag_name }}
+          release-failed: ${{ steps.rp.outcome == 'failure' }}
 
       - if: startsWith(github.ref, 'refs/heads/release/')
         uses: $/.github/actions/keep-latest

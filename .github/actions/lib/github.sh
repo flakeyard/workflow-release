@@ -1,12 +1,13 @@
 # shellcheck shell=bash
 # Helpers for GitHub API calls through gh. Source this file; it expects REPO.
 
-# api_get PATH: print the response body. Returns 0 when found, 3 when the
-# resource does not exist (HTTP 404) and 1 on any other error.
-api_get() {
+# api_request METHOD PATH: print the response body. Returns 0 on success, 3
+# when the resource does not exist (HTTP 404) and 1 on any other error, after
+# printing the error.
+api_request() {
   local err status=0
   err=$(mktemp)
-  gh api "$1" 2>"$err" || status=$?
+  gh api -X "$1" "$2" 2>"$err" || status=$?
   if ((status == 0)); then
     rm -f "$err"
     return 0
@@ -19,6 +20,12 @@ api_get() {
   rm -f "$err"
   return 1
 }
+
+# api_get PATH: GET a resource; returns like api_request.
+api_get() { api_request GET "$1"; }
+
+# api_delete PATH: DELETE a resource; returns like api_request.
+api_delete() { api_request DELETE "$1" >/dev/null; }
 
 # tag_commit TAG: print the commit a tag points at, following annotated tags.
 # Returns like api_get.

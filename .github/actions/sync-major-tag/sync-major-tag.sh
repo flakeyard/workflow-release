@@ -17,7 +17,13 @@ if [[ -z $latest ]]; then
   summary "no release of v$major yet"
   exit 0
 fi
-target=$(tag_commit "$latest")
+status=0
+target=$(tag_commit "$latest") || status=$?
+if ((status == 3)); then
+  echo "::error::release $latest has no tag"
+  exit 1
+fi
+((status == 0)) || exit 1
 
 status=0
 current=$(tag_commit "v$major") || status=$?

@@ -1,11 +1,25 @@
 #!/usr/bin/env bash
-# Stub of gh for tests. GET requests are answered from $FIXTURES/<path> (with
-# "/", "?", "&" and "=" replaced by "_"), or with HTTP 404 when the file is
-# missing; a file containing "HTTP 500" fails like a server error. Other
-# requests and "gh workflow run" are appended to $CALLS.
+# Stub of gh for tests.
+#
+# GET PATH is answered from $FIXTURES/<key>, where <key> is PATH with "/",
+# "?", "&" and "=" replaced by "_"; with --paginate, $FIXTURES/<key>.2,
+# <key>.3 and so on are further pages. A missing file is HTTP 404, and a file
+# containing "HTTP 500" is a server error; like gh, errors print the error body
+# on stdout and the message on stderr.
+#
+# Other methods and "gh workflow run" are appended to $CALLS and succeed,
+# unless "<METHOD> <PATH>" is listed in $FAIL_ON (one per line), which fails
+# with HTTP 502.
 set -euo pipefail
 
 key() { echo "${1//[\/?&=]/_}"; }
+
+# fail STATUS MESSAGE: fail like gh does on an HTTP error.
+fail() {
+  printf '{"message":"%s","status":"%s"}\n' "$2" "$1"
+  echo "gh: $2 (HTTP $1)" >&2
+  exit 1
+}
 
 if [[ $1 == workflow ]]; then
   shift
@@ -18,7 +32,7 @@ fi
 }
 shift
 
-method="" path="" jq_filter="" fields=() include=false
+method="" path="" jq_filter="" paginate=false fields=()
 while (($#)); do
   case $1 in
     -X)
@@ -33,11 +47,11 @@ while (($#)); do
       fields+=("$2")
       shift 2
       ;;
-    -i)
-      include=true
+    --paginate)
+      paginate=true
       shift
       ;;
-    --silent | --paginate) shift ;;
+    --silent) shift ;;
     -*)
       echo "stub gh: unsupported flag $1" >&2
       exit 2
@@ -54,22 +68,28 @@ fi
 
 if [[ $method != GET ]]; then
   echo "$method $path ${fields[*]}" >>"$CALLS"
+  if grep -qxF -- "$method $path" <<<"${FAIL_ON:-}"; then
+    fail 502 "Bad Gateway"
+  fi
   exit 0
 fi
 
 file=$FIXTURES/$(key "$path")
-if [[ ! -f $file ]]; then
-  $include && echo "HTTP/2.0 404 Not Found"
-  echo "gh: Not Found (HTTP 404)" >&2
-  exit 1
+[[ -f $file ]] || fail 404 "Not Found"
+grep -q 'HTTP 500' "$file" && fail 500 "Server Error"
+
+pages=("$file")
+if $paginate; then
+  page=2
+  while [[ -f $file.$page ]]; do
+    pages+=("$file.$page")
+    page=$((page + 1))
+  done
 fi
-if grep -q 'HTTP 500' "$file"; then
-  echo "gh: Server Error (HTTP 500)" >&2
-  exit 1
-fi
-$include && echo "HTTP/2.0 200 OK"
-if [[ -n $jq_filter ]]; then
-  jq -r "$jq_filter" "$file"
-else
-  cat "$file"
-fi
+for page in "${pages[@]}"; do
+  if [[ -n $jq_filter ]]; then
+    jq -r "$jq_filter" "$page"
+  else
+    cat "$page"
+  fi
+done

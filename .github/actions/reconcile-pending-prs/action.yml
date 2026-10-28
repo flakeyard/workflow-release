@@ -1,10 +1,12 @@
-name: Reconcile merged release pull requests
+name: Reconcile pending release pull requests
 description: >-
   Relabels merged release pull requests left "autorelease: pending" as tagged
   when their release exists. release-please cannot do it after a failed run,
   because recreating an immutable release is refused.
 inputs:
   token:
+    required: true
+  manifest-file:
     required: true
 runs:
   using: composite
@@ -14,4 +16,5 @@ runs:
         GH_TOKEN: ${{ inputs.token }}
         REPO: ${{ github.repository }}
         BASE: ${{ github.ref_name }}
-      run: '"$GITHUB_ACTION_PATH/reconcile.sh"'
+        MANIFEST: ${{ inputs.manifest-file }}
+      run: '"$GITHUB_ACTION_PATH/reconcile-pending-prs.sh"'
