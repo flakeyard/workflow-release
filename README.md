@@ -129,7 +129,7 @@ Leave `app-client-id` empty and omit the secret. Then:
 - `environment` (default `""`): environment that holds `APP_PRIVATE_KEY`. Empty
   means none.
 - `move-major-tag` (default `false`): keep `vX` at the newest published
-  `vX.Y.Z`.
+  `vX.Y.Z`, and `v0` at the newest `0.y.z`.
 - `check-workflow` (default `""`): check workflow to start on the release pull
   request when no App is used.
 - `config-file` (default `release-please-config.json`): release-please
@@ -184,8 +184,9 @@ are skipped.
   changes nothing but reports its release again, so publishing jobs must be
   idempotent.
 - **Moving tag.** `vX` is created or moved to the newest published,
-  non-prerelease `vX.Y.Z` of the major version on the branch, only forward. No
-  `v0` is created.
+  non-prerelease `vX.Y.Z` of the major version on the branch, only forward. `v0`
+  follows the releases `0.y.z`, which are all pre-releases and carry no
+  compatibility guarantee.
 - **Concurrency.** Release jobs of one repository run one at a time and queue
   instead of being cancelled.
 
@@ -201,9 +202,22 @@ The workflow releases itself through
 request, run actionlint and zizmor on `.github/workflows`; actionlint does not
 yet know the `$/` syntax and reports it as an error. The design follows
 [FY-0007](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0007-branching-and-releases.md),
-[FY-0010](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0010-release-bot.md)
+[FY-0021](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0021-release-bot.md)
 and
 [FY-0020](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0020-actions-and-workflows.md).
+
+## Bootstrap
+
+Following
+[FY-0022](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0022-bootstrap.md),
+this repository has no CI checks yet. Until they are released:
+
+- actionlint, zizmor, shellcheck, prettier, markdownlint, typos and REUSE run
+  locally before every pull request; `workflow-check` and the atoms will provide
+  them;
+- pull request titles are checked by the reviewer; `workflow-check` will check
+  them;
+- OpenSSF Scorecard comes with `workflow-check`.
 
 ## License
 

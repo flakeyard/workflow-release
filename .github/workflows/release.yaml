@@ -268,7 +268,9 @@ jobs:
           fi
 
       # Idempotent and monotonic: vX moves only forward, to the newest
-      # published vX.Y.Z of the major version released from this branch.
+      # published vX.Y.Z of the major version released from this branch. All
+      # releases 0.y.z are pre-releases, so v0 follows them; other majors skip
+      # pre-releases.
       - name: Sync the major tag
         if: inputs.move-major-tag
         env:
@@ -299,12 +301,14 @@ jobs:
           version=$(gh api "repos/$REPO/contents/$MANIFEST?ref=$SHA" --jq .content \
             | base64 -d | jq -r '."."')
           major=${version%%.*}
-          if [[ ! $major =~ ^[1-9][0-9]*$ ]]; then
-            echo "no major tag for version $version" >>"$GITHUB_STEP_SUMMARY"
-            exit 0
+          if [[ ! $major =~ ^(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::unexpected version $version in $MANIFEST"
+            exit 1
           fi
+          keep='.prerelease | not'
+          if ((major == 0)); then keep=true; fi
           latest=$(gh api --paginate "repos/$REPO/releases" \
-            --jq '.[] | select((.draft or .prerelease) | not) | .tag_name' \
+            --jq ".[] | select(.draft | not) | select($keep) | .tag_name" \
             | { grep -E "^v$major\.[0-9]+\.[0-9]+$" || true; } | sort -V | tail -n 1)
           if [[ -z $latest ]]; then
             echo "no release of v$major yet" >>"$GITHUB_STEP_SUMMARY"
