@@ -4,5 +4,8 @@
   "include-component-in-tag": false,
   "bump-minor-pre-major": true,
   "prerelease": true,
-  "packages": { ".": {} }
+  "initial-version": "0.1.0",
+  "packages": {
+    ".": {}
+  }
 }

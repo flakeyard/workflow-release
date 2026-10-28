@@ -38,7 +38,7 @@ on:
         required: false
     outputs:
       released:
-        description: "'true' when the pushed commit is a release."
+        description: "'true' when this run's commit is a published release."
         value: ${{ jobs.release.outputs.released }}
       tag:
         description: Release tag, such as v1.2.3.
@@ -47,62 +47,75 @@ on:
         description: Released version, such as 1.2.3.
         value: ${{ jobs.release.outputs.version }}
       major:
+        description: Major version of the release.
         value: ${{ jobs.release.outputs.major }}
       minor:
+        description: Minor version of the release.
         value: ${{ jobs.release.outputs.minor }}
       patch:
+        description: Patch version of the release.
         value: ${{ jobs.release.outputs.patch }}
+      prerelease:
+        description: "'true' when the release is a pre-release (0.y.z)."
+        value: ${{ jobs.release.outputs.prerelease }}
       sha:
         description: Commit of the release; build published artifacts from it.
         value: ${{ jobs.release.outputs.sha }}
       release-url:
+        description: URL of the GitHub release.
         value: ${{ jobs.release.outputs.release-url }}
 
 permissions: {}
 
 jobs:
   release:
+    name: Release
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: ${{ inputs.environment }}
     concurrency:
       group: flakeyard-release-${{ github.repository }}
       cancel-in-progress: false
+      queue: max
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+      contents: write # releases and tags with GITHUB_TOKEN
+      issues: write # release-please labels
+      pull-requests: write # release-please comments on the merged pull request
     outputs:
+      checked: ${{ steps.config.outputs.checked }}
       released: ${{ steps.state.outputs.released }}
       tag: ${{ steps.state.outputs.tag }}
       version: ${{ steps.state.outputs.version }}
       major: ${{ steps.state.outputs.major }}
       minor: ${{ steps.state.outputs.minor }}
       patch: ${{ steps.state.outputs.patch }}
+      prerelease: ${{ steps.state.outputs.prerelease }}
       sha: ${{ steps.state.outputs.sha }}
       release-url: ${{ steps.state.outputs.release-url }}
     steps:
       - name: Check inputs
         env:
           CLIENT_ID: ${{ inputs.app-client-id }}
-          KEY: ${{ secrets.APP_PRIVATE_KEY }}
+          HAS_KEY: ${{ secrets.APP_PRIVATE_KEY != '' }}
           REF: ${{ github.ref }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
-          if [[ -n $CLIENT_ID && -z $KEY ]]; then
+          if [[ -n $CLIENT_ID && $HAS_KEY != true ]]; then
             echo "::error::app-client-id is set but APP_PRIVATE_KEY is empty;" \
               "pass it under that name and set environment if it is an" \
               "environment secret"
             exit 1
           fi
-          case $REF in
-            "refs/heads/$DEFAULT_BRANCH" | refs/heads/release/v[1-9]*) ;;
-            *)
-              echo "::error::releases run only on $DEFAULT_BRANCH and release/vN, not $REF"
-              exit 1
-              ;;
-          esac
+          if [[ -z $CLIENT_ID && $HAS_KEY == true ]]; then
+            echo "::error::APP_PRIVATE_KEY is set but app-client-id is empty"
+            exit 1
+          fi
+          if [[ $REF != "refs/heads/$DEFAULT_BRANCH" &&
+            ! $REF =~ ^refs/heads/release/v[1-9][0-9]*$ ]]; then
+            echo "::error::releases run only on $DEFAULT_BRANCH and release/vN, not $REF"
+            exit 1
+          fi
 
       - id: app
         if: inputs.app-client-id != ''
@@ -114,7 +127,48 @@ jobs:
           permission-issues: write
           permission-pull-requests: write
 
-      - name: Create releases
+      # The state derivation below assumes one root package tagged vX.Y.Z.
+      - id: config
+        name: Check the release-please configuration
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          CONFIG: ${{ inputs.config-file }}
+          MANIFEST: ${{ inputs.manifest-file }}
+        run: |
+          set -euo pipefail
+          read_file() {
+            gh api "repos/$REPO/contents/$1?ref=$SHA" --jq .content | base64 -d
+          }
+          config=$(read_file "$CONFIG")
+          manifest=$(read_file "$MANIFEST")
+          problems=$(jq -r '
+            . as $top
+            | (.packages // {}) as $p
+            | ($p["."] // {}) as $root
+            # A package setting overrides the top-level one; false is a value.
+            | def opt($k): if $root | has($k) then $root[$k] else $top[$k] end;
+            [
+              (if ($p | keys) != ["."] then "packages must contain only \".\"" else empty end),
+              (if opt("include-v-in-tag") == false then "include-v-in-tag must not be false" else empty end),
+              (if opt("include-component-in-tag") != false then "include-component-in-tag must be false" else empty end),
+              (if opt("draft") == true then "draft releases are not supported" else empty end),
+              (if opt("tag-separator") != null then "tag-separator is not supported" else empty end)
+            ] | .[]' <<<"$config")
+          if [[ -n $problems ]]; then
+            while IFS= read -r line; do echo "::error file=$CONFIG::$line"; done <<<"$problems"
+            exit 1
+          fi
+          jq -e 'has(".")' <<<"$manifest" >/dev/null \
+            || { echo "::error file=$MANIFEST::the manifest has no \".\" entry"; exit 1; }
+          echo "checked=true" >>"$GITHUB_OUTPUT"
+
+      # Pass 1 of release-please. It can fail after it created the release, so
+      # the steps after it run regardless and the job fails at the end.
+      - id: rp
+        name: Create releases
+        continue-on-error: true
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ steps.app.outputs.token || github.token }}
@@ -123,8 +177,8 @@ jobs:
           target-branch: ${{ github.ref_name }}
           skip-github-pull-request: true
 
-      # Outputs are derived from the repository, not from release-please, so
-      # that a rerun after a failed run reports the release again.
+      # Outputs come from the repository, so that a rerun after a failed run
+      # reports the release again.
       - id: state
         name: Derive the release state
         env:
@@ -132,43 +186,72 @@ jobs:
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
           MANIFEST: ${{ inputs.manifest-file }}
+          CREATED: ${{ steps.rp.outputs.release_created }}
+          CREATED_TAG: ${{ steps.rp.outputs.tag_name }}
         run: |
           set -euo pipefail
+          # get PATH: print the response; status 0 found, 3 not found, 1 error.
+          get() {
+            local err status=0
+            err=$(mktemp)
+            gh api "$1" 2>"$err" || status=$?
+            if ((status == 0)); then return 0; fi
+            if grep -q 'HTTP 404' "$err"; then return 3; fi
+            cat "$err" >&2
+            return 1
+          }
+          # commit_of TAG: print the commit a tag points at.
+          commit_of() {
+            local ref
+            ref=$(get "repos/$REPO/git/ref/tags/$1") || return
+            if [[ $(jq -r .object.type <<<"$ref") == tag ]]; then
+              get "repos/$REPO/git/tags/$(jq -r .object.sha <<<"$ref")" | jq -r .object.sha
+            else
+              jq -r .object.sha <<<"$ref"
+            fi
+          }
           version=$(gh api "repos/$REPO/contents/$MANIFEST?ref=$SHA" --jq .content \
-            | base64 -d | jq -r '."." // empty')
+            | base64 -d | jq -r '."."')
+          tag=v$version
           released=false
-          if [[ $version =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-            tag=v$version
-            # The release counts only if its tag points at the pushed commit.
-            if ref=$(gh api "repos/$REPO/git/ref/tags/$tag" 2>/dev/null); then
-              type=$(jq -r .object.type <<<"$ref")
-              commit=$(jq -r .object.sha <<<"$ref")
-              if [[ $type == tag ]]; then
-                commit=$(gh api "repos/$REPO/git/tags/$commit" --jq .object.sha)
-              fi
-              release=$(gh api "repos/$REPO/releases/tags/$tag")
-              if [[ $commit == "$SHA" && $(jq -r .draft <<<"$release") == false ]]; then
-                released=true
-                {
-                  echo "tag=$tag"
-                  echo "version=$version"
-                  echo "major=${BASH_REMATCH[1]}"
-                  echo "minor=${BASH_REMATCH[2]}"
-                  echo "patch=${BASH_REMATCH[3]}"
-                  echo "sha=$SHA"
-                  echo "release-url=$(jq -r .html_url <<<"$release")"
-                } >>"$GITHUB_OUTPUT"
-              fi
+          status=0
+          commit=$(commit_of "$tag") || status=$?
+          if ((status == 0)); then
+            if [[ $commit == "$SHA" ]]; then
+              released=true
+            elif [[ $CREATED == true && $CREATED_TAG == "$tag" ]]; then
+              # A run that waited in the queue released an older commit.
+              released=true
+              echo "::notice::$tag was released at $commit, not at $SHA"
+            fi
+          elif ((status != 3)); then
+            exit 1
+          fi
+          if [[ $released == true ]]; then
+            release=$(get "repos/$REPO/releases/tags/$tag")
+            if [[ $(jq -r .draft <<<"$release") == true ]]; then
+              released=false
             fi
           fi
+          if [[ $released == true ]]; then
+            IFS=. read -r major minor patch <<<"$version"
+            {
+              echo "tag=$tag"
+              echo "version=$version"
+              echo "major=$major"
+              echo "minor=$minor"
+              echo "patch=$patch"
+              echo "prerelease=$(jq -r .prerelease <<<"$release")"
+              echo "sha=$commit"
+              echo "release-url=$(jq -r .html_url <<<"$release")"
+            } >>"$GITHUB_OUTPUT"
+          fi
           echo "released=$released" >>"$GITHUB_OUTPUT"
-          echo "version=${version:-none} released=$released" >>"$GITHUB_STEP_SUMMARY"
+          echo "manifest $version, released: $released" >>"$GITHUB_STEP_SUMMARY"
 
       # A release from release/vN must not take "Latest" from a newer major.
       - name: Keep the newest release latest
-        if:
-          steps.state.outputs.released == 'true' && startsWith(github.ref,
-          'refs/heads/release/')
+        if: startsWith(github.ref, 'refs/heads/release/')
         env:
           GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
           REPO: ${{ github.repository }}
@@ -177,9 +260,11 @@ jobs:
           newest=$(gh api --paginate "repos/$REPO/releases" \
             --jq '.[] | select((.draft or .prerelease) | not) | "\(.tag_name) \(.id)"' \
             | { grep -E '^v[0-9]+\.[0-9]+\.[0-9]+ ' || true; } | sort -V | tail -n 1)
-          if [[ -n $newest ]]; then
+          [[ -n $newest ]] || exit 0
+          current=$(gh api "repos/$REPO/releases/latest" --jq .id 2>/dev/null || true)
+          if [[ $current != "${newest#* }" ]]; then
             gh api --silent -X PATCH "repos/$REPO/releases/${newest#* }" -f make_latest=true
-            echo "latest: ${newest% *}" >>"$GITHUB_STEP_SUMMARY"
+            echo "marked ${newest% *} as latest" >>"$GITHUB_STEP_SUMMARY"
           fi
 
       # Idempotent and monotonic: vX moves only forward, to the newest
@@ -193,11 +278,29 @@ jobs:
           MANIFEST: ${{ inputs.manifest-file }}
         run: |
           set -euo pipefail
+          get() {
+            local err status=0
+            err=$(mktemp)
+            gh api "$1" 2>"$err" || status=$?
+            if ((status == 0)); then return 0; fi
+            if grep -q 'HTTP 404' "$err"; then return 3; fi
+            cat "$err" >&2
+            return 1
+          }
+          commit_of() {
+            local ref
+            ref=$(get "repos/$REPO/git/ref/tags/$1") || return
+            if [[ $(jq -r .object.type <<<"$ref") == tag ]]; then
+              get "repos/$REPO/git/tags/$(jq -r .object.sha <<<"$ref")" | jq -r .object.sha
+            else
+              jq -r .object.sha <<<"$ref"
+            fi
+          }
           version=$(gh api "repos/$REPO/contents/$MANIFEST?ref=$SHA" --jq .content \
-            | base64 -d | jq -r '."." // empty')
+            | base64 -d | jq -r '."."')
           major=${version%%.*}
           if [[ ! $major =~ ^[1-9][0-9]*$ ]]; then
-            echo "no major tag for version '${version:-none}'" >>"$GITHUB_STEP_SUMMARY"
+            echo "no major tag for version $version" >>"$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           latest=$(gh api --paginate "repos/$REPO/releases" \
@@ -207,25 +310,16 @@ jobs:
             echo "no release of v$major yet" >>"$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          peel() {
-            local ref type sha
-            ref=$(gh api "repos/$REPO/git/ref/tags/$1") || return 1
-            type=$(jq -r .object.type <<<"$ref")
-            sha=$(jq -r .object.sha <<<"$ref")
-            if [[ $type == tag ]]; then
-              sha=$(gh api "repos/$REPO/git/tags/$sha" --jq .object.sha)
-            fi
-            echo "$sha"
-          }
-          target=$(peel "$latest")
-          status=$(gh api -i "repos/$REPO/git/ref/tags/v$major" 2>/dev/null | head -n 1 || true)
-          if [[ $status == *" 404"* ]]; then
+          target=$(commit_of "$latest")
+          status=0
+          current=$(commit_of "v$major") || status=$?
+          if ((status == 3)); then
             gh api --silent -X POST "repos/$REPO/git/refs" \
               -f ref="refs/tags/v$major" -f sha="$target"
             echo "created v$major at $latest" >>"$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          current=$(peel "v$major")
+          ((status == 0)) || exit 1
           if [[ $current == "$target" ]]; then
             echo "v$major already at $latest" >>"$GITHUB_STEP_SUMMARY"
             exit 0
@@ -239,20 +333,28 @@ jobs:
             -f sha="$target" -F force=true
           echo "moved v$major to $latest" >>"$GITHUB_STEP_SUMMARY"
 
+      - name: Fail if release-please failed
+        if: steps.rp.outcome == 'failure'
+        run: |
+          echo "::error::release-please failed; the outputs, the latest release" \
+            "and the major tag were updated from the repository. Rerun to retry."
+          exit 1
+
   pull-request:
+    name: Release pull request
     needs: release
+    if: ${{ !cancelled() && needs.release.outputs.checked == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: ${{ inputs.environment }}
     concurrency:
       group: flakeyard-release-pr-${{ github.repository }}-${{ github.ref }}
       cancel-in-progress: false
+      queue: max
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    outputs:
-      branch: ${{ steps.branch.outputs.branch }}
+      contents: write # the release branch, with GITHUB_TOKEN
+      issues: write # labels
+      pull-requests: write # the release pull request
     steps:
       - id: app
         if: inputs.app-client-id != ''
@@ -264,8 +366,8 @@ jobs:
           permission-issues: write
           permission-pull-requests: write
 
-      # The pull request pass is idempotent, so a transient API failure is
-      # retried once.
+      # Pass 2 of release-please is idempotent, so a failure is retried once
+      # after a pause.
       - id: first
         name: Update the release pull request
         continue-on-error: true
@@ -277,8 +379,11 @@ jobs:
           target-branch: ${{ github.ref_name }}
           skip-github-release: true
 
-      - id: second
-        name: Update the release pull request (retry)
+      - name: Wait before retrying
+        if: steps.first.outcome == 'failure'
+        run: sleep 30
+
+      - name: Update the release pull request (retry)
         if: steps.first.outcome == 'failure'
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
@@ -288,38 +393,36 @@ jobs:
           target-branch: ${{ github.ref_name }}
           skip-github-release: true
 
-      - id: branch
-        name: Find the updated pull request
-        env:
-          PR: ${{ steps.first.outputs.pr || steps.second.outputs.pr }}
-          UPDATED:
-            ${{ steps.first.outputs.prs_created ||
-            steps.second.outputs.prs_created }}
-        run: |
-          set -euo pipefail
-          if [[ $UPDATED == true && -n $PR ]]; then
-            echo "branch=$(jq -r .headBranchName <<<"$PR")" >>"$GITHUB_OUTPUT"
-          fi
-
-  # Pull requests created with GITHUB_TOKEN start no workflows, so their checks
-  # are started here; they report back as commit statuses.
+  # Pull requests created with GITHUB_TOKEN start no workflows, so the checks
+  # of the open release pull request are started here, on every run; they
+  # report back as commit statuses.
   dispatch-checks:
-    needs: pull-request
-    if:
-      inputs.app-client-id == '' && inputs.check-workflow != '' &&
-      needs.pull-request.outputs.branch != ''
+    name: Start checks
+    needs: [release, pull-request]
+    if: >-
+      ${{ !cancelled() && needs.release.outputs.checked == 'true' &&
+      inputs.app-client-id == '' && inputs.check-workflow != '' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
-      actions: write
+      actions: write # start the check workflow
+      pull-requests: read # find the release pull request
     steps:
-      - name: Start the check workflow
+      - name: Start the check workflow on the release pull request
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          BASE: ${{ github.ref_name }}
           WORKFLOW: ${{ inputs.check-workflow }}
-          BRANCH: ${{ needs.pull-request.outputs.branch }}
         run: |
           set -euo pipefail
-          gh workflow run "$WORKFLOW" --repo "$REPO" --ref "$BRANCH"
-          echo "started $WORKFLOW on $BRANCH" >>"$GITHUB_STEP_SUMMARY"
+          head=release-please--branches--$BASE
+          number=$(gh api "repos/$REPO/pulls?state=open&base=$BASE&head=$OWNER:$head" \
+            --jq '.[0].number // empty')
+          if [[ -z $number ]]; then
+            echo "no open release pull request" >>"$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh workflow run "$WORKFLOW" --repo "$REPO" --ref "$head"
+          echo "started $WORKFLOW on #$number ($head)" >>"$GITHUB_STEP_SUMMARY"

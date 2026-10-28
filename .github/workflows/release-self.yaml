@@ -10,6 +10,8 @@ permissions: {}
 jobs:
   release:
     uses: $/.github/workflows/release.yaml
+    # Required by the called workflow for every path; with the App, its token
+    # does the writes.
     permissions:
       contents: write
       issues: write
