@@ -1,0 +1,23 @@
+# Releases this repository with its own product workflow.
+name: release-self
+
+on:
+  push:
+    branches: [main, "release/v*"]
+
+permissions: {}
+
+jobs:
+  release:
+    uses: $/.github/workflows/release.yaml
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      actions: write
+    with:
+      app-client-id: ${{ vars.BOT_CLIENT_ID }}
+      environment: release
+      move-major-tag: true
+    secrets:
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
