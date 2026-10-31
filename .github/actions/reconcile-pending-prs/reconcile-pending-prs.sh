@@ -16,11 +16,11 @@ for number in $numbers; do
   # The released version is the manifest's at the merge commit.
   version=$(manifest_version "$MANIFEST" "$(jq -r .merge_commit_sha <<<"$pr")")
   tag=v$version
+  # Only published releases count; the endpoint answers a draft with HTTP 404.
   status=0
-  release=$(api_get "repos/$REPO/releases/tags/$tag") || status=$?
+  api_get "repos/$REPO/releases/tags/$tag" >/dev/null || status=$?
   ((status == 3)) && continue
   ((status == 0)) || exit 1
-  [[ $(jq -r .draft <<<"$release") == false ]] || continue
   # Add the new label first: a failure in between leaves the pull request
   # pending, so the next run retries.
   gh api --silent -X POST "repos/$REPO/issues/$number/labels" -f "labels[]=autorelease: tagged"

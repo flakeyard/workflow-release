@@ -35,9 +35,11 @@ file_fixture() {
 manifest() { file_fixture "$MANIFEST" "${2:-aaa}" "{\".\": \"$1\"}"; }
 tag() { fixture "repos/o/r/git/ref/tags/$1" "{\"object\":{\"type\":\"commit\",\"sha\":\"$2\"}}"; }
 releases() { fixture "repos/o/r/releases" "$1"; }
+# release TAG [PRERELEASE]: a published release. The API answers a draft by
+# tag with HTTP 404, so a draft has no fixture.
 release() {
   fixture "repos/o/r/releases/tags/$1" \
-    "{\"draft\":${2:-false},\"prerelease\":${3:-false},\"html_url\":\"https://x/$1\"}"
+    "{\"draft\":false,\"prerelease\":${2:-false},\"html_url\":\"https://x/$1\"}"
 }
 
 # run NAME EXPECTED SCRIPT: run an action script; EXPECTED is ok or fail.
@@ -226,25 +228,61 @@ setup
 manifest 0.3.0
 fixture "repos/o/r/git/ref/tags/v0.3.0" '{"object":{"type":"tag","sha":"t1"}}'
 fixture "repos/o/r/git/tags/t1" '{"object":{"sha":"aaa"}}'
-release v0.3.0 false true
+release v0.3.0 true
 run "release-state: annotated tag, pre-release" ok release-state/release-state.sh
 expect state released true
 expect state prerelease true
 finish
 
 setup
+manifest 0.3.0
+fixture "repos/o/r/git/ref/tags/v0.3.0" '{"object":{"type":"tag","sha":"t1"}}'
+release v0.3.0 true
+run "release-state: annotated tag object missing fails" fail release-state/release-state.sh
+expect message "HTTP 404"
+finish
+
+setup
+manifest 0.3.0
+fixture "repos/o/r/git/ref/tags/v0.3.0" '{"object":{"type":"tag","sha":"t1"}}'
+fixture "repos/o/r/git/tags/t1" "HTTP 500"
+release v0.3.0 true
+run "release-state: annotated tag API error fails" fail release-state/release-state.sh
+expect message "HTTP 500"
+finish
+
+setup
 manifest 1.2.3
 tag v1.2.3 aaa
-release v1.2.3 true
-run "release-state: draft" ok release-state/release-state.sh
-expect state released false
+mv "$FIXTURES/repos_o_r_git_ref_tags_v1.2.3" "$FIXTURES/repos_o_r_git_ref_tags_v1.2.3.late"
+release v1.2.3
+export CREATED=true CREATED_TAG=v1.2.3
+run "release-state: waits for the tag this run created" ok release-state/release-state.sh
+expect state released true
+expect state sha aaa
+finish
+
+setup
+manifest 1.2.3
+release v1.2.3
+export CREATED=true CREATED_TAG=v1.2.3
+run "release-state: tag this run created never appears" fail release-state/release-state.sh
+expect message "release-please created v1.2.3, but the tag does not exist"
+finish
+
+setup
+manifest 1.2.3
+tag v1.2.3 aaa
+# A draft release: the API answers by tag with HTTP 404.
+run "release-state: tag whose release is a draft" fail release-state/release-state.sh
+expect message "has no published release"
 finish
 
 setup
 manifest 1.2.3
 tag v1.2.3 aaa
 run "release-state: tag without release" fail release-state/release-state.sh
-expect message "has no release"
+expect message "has no published release"
 finish
 
 setup
@@ -345,6 +383,13 @@ fixture "repos/o/r/git/ref/tags/v1" "HTTP 500"
 run "sync-major-tag: API error fails" fail sync-major-tag/sync-major-tag.sh
 finish
 
+sync_setup 1.10.0
+tag v1.10.0 c110
+export FAIL_ON="POST repos/o/r/git/refs 422"
+run "sync-major-tag: creating the tag fails when it appeared meanwhile" fail sync-major-tag/sync-major-tag.sh
+expect message "HTTP 422"
+finish
+
 # --- keep-latest -------------------------------------------------------------
 
 latest_releases='[
@@ -420,9 +465,26 @@ expect no-call "issues/9/"
 finish
 
 reconcile_setup
-release v1.3.0 true
+release v1.2.0
+# v1.3.0 is a draft: the API answers by tag with HTTP 404.
+releases '[{"tag_name":"v1.3.0","draft":true,"prerelease":false}]'
 run "reconcile: draft release" ok reconcile-pending-prs/reconcile-pending-prs.sh
+expect call "POST repos/o/r/issues/5/labels"
 expect no-call "issues/6/"
+finish
+
+reconcile_setup
+release v1.2.0
+export FAIL_ON="DELETE repos/o/r/issues/5/labels/autorelease:%20pending 404"
+run "reconcile: pending label already removed" ok reconcile-pending-prs/reconcile-pending-prs.sh
+expect call "DELETE repos/o/r/issues/5/labels/autorelease:%20pending"
+finish
+
+reconcile_setup
+release v1.2.0
+export FAIL_ON="DELETE repos/o/r/issues/5/labels/autorelease:%20pending"
+run "reconcile: removing the label fails" fail reconcile-pending-prs/reconcile-pending-prs.sh
+expect message "HTTP 502"
 finish
 
 reconcile_setup

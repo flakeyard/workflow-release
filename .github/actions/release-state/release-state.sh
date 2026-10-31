@@ -6,6 +6,27 @@ set -euo pipefail
 # shellcheck source-path=SCRIPTDIR source=../lib/github.sh
 source "$(dirname "$0")/../lib/github.sh"
 
+# A tag that release-please has just created can take a moment to be visible.
+readonly TAG_ATTEMPTS=5 TAG_RETRY_SECONDS=3
+
+# created_in_this_run TAG: release-please created TAG in this run.
+created_in_this_run() {
+  local tag=$1
+  [[ ${CREATED:-} == true && ${CREATED_TAG:-} == "$tag" ]]
+}
+
+# tag_commit_retrying TAG ATTEMPTS: like tag_commit, but tries up to ATTEMPTS
+# times while the tag does not exist.
+tag_commit_retrying() {
+  local tag=$1 attempts=$2 attempt status
+  for ((attempt = 1; ; attempt++)); do
+    status=0
+    tag_commit "$tag" || status=$?
+    ((status == 3 && attempt < attempts)) || return "$status"
+    sleep "$TAG_RETRY_SECONDS"
+  done
+}
+
 version=$(manifest_version "$MANIFEST" "$SHA")
 if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "::error file=$MANIFEST::the root version must be X.Y.Z, not '$version'"
@@ -19,12 +40,18 @@ if [[ ${NEW_BRANCH:-} == true && ${CREATED:-} != true ]]; then
   # Creating a branch, such as release/vN at a release, releases nothing new.
   echo "::notice::branch created at $SHA; not a new release"
 else
+  attempts=1
+  if created_in_this_run "$tag"; then attempts=$TAG_ATTEMPTS; fi
   status=0
-  commit=$(tag_commit "$tag") || status=$?
+  commit=$(tag_commit_retrying "$tag" "$attempts") || status=$?
+  if ((status == 3)) && created_in_this_run "$tag"; then
+    echo "::error::release-please created $tag, but the tag does not exist"
+    exit 1
+  fi
   if ((status == 0)); then
     if [[ $commit == "$SHA" ]]; then
       released=true
-    elif [[ ${CREATED:-} == true && ${CREATED_TAG:-} == "$tag" ]]; then
+    elif created_in_this_run "$tag"; then
       # A run that waited in the queue released an older commit.
       released=true
       echo "::notice::$tag was released at $commit, not at $SHA"
@@ -38,14 +65,14 @@ else
 fi
 
 if [[ $released == true ]]; then
+  # The endpoint returns only published releases: a draft is HTTP 404 too.
   status=0
   release=$(api_get "repos/$REPO/releases/tags/$tag") || status=$?
   if ((status == 3)); then
-    echo "::error::tag $tag exists but has no release"
+    echo "::error::tag $tag exists but has no published release"
     exit 1
   fi
   ((status == 0)) || exit 1
-  [[ $(jq -r .draft <<<"$release") == false ]] || released=false
 fi
 
 # One JSON output with string fields, all empty unless released.
