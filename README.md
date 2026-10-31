@@ -38,7 +38,7 @@ jobs:
     secrets:
       APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
 
-  # Publishing runs in the same workflow run as the release.
+  # Publishing runs in the workflow run of the release commit.
   publish:
     needs: release
     if: ${{ !cancelled() && needs.release.outputs.released == 'true' }}
@@ -151,12 +151,15 @@ Leave `app-client-id` empty and omit the secret. Then:
 
 ## Outputs
 
-- `released`: `true` when the run's commit is a published release.
+- `released`: `true` when the run's commit is a published release. A run that
+  creates the release of an older commit, such as a run that waited in the
+  queue, reports `false` and reruns the run of that commit, which reports it.
 - `tag`: release tag, such as `v1.2.3`.
 - `version`: released version, such as `1.2.3`.
 - `major`, `minor`, `patch`: parts of the version.
 - `prerelease`: `true` for releases `0.y.z`.
-- `sha`: commit of the release. Build published artifacts from this commit.
+- `sha`: commit of the release, the run's commit. Build published artifacts from
+  this commit.
 - `release-url`: URL of the GitHub release.
 
 ## Permissions
@@ -167,22 +170,26 @@ checks the permissions of every job of a called workflow, including jobs that
 are skipped.
 
 - With an App, its token does the work and is limited to the current repository
-  and to contents, issues and pull requests; `GITHUB_TOKEN` is not used for
-  writes.
+  and to contents, issues and pull requests; `GITHUB_TOKEN` is used for no
+  writes but reruns.
 - Without an App, `GITHUB_TOKEN` uses `contents`, `issues` and `pull-requests`
   for releases and the release pull request, and `actions` to start
   `check-workflow`.
+- On both paths, `GITHUB_TOKEN` uses `actions` to rerun the run of a release
+  commit that another run released.
 
 ## Behaviour
 
 - **Branches.** Runs only on the default branch and on `release/vN`. On
   `release/vN`, release-please works on that branch, and the newest release of
   the repository stays marked as latest.
-- **Jobs.** `Release` creates releases, `Release pull request` updates the
-  release pull request, and `Start checks` starts `check-workflow` without an
-  App. A failure of a later job does not affect the outputs of `Release`. The
-  pull request update is retried once after 30 seconds. `Release pull request`
-  uses the environment for the key but creates no deployment.
+- **Jobs.** `Release` creates releases, `Publish at the release commit` reruns
+  the run of a release commit that this run released, `Release pull request`
+  updates the release pull request, and `Start checks` starts `check-workflow`
+  without an App. A failure of a later job does not affect the outputs of
+  `Release`. The pull request update is retried once after 30 seconds.
+  `Release pull request` uses the environment for the key but creates no
+  deployment.
 - **Reruns.** The outputs are derived from the manifest and the release tag, not
   only from release-please's own outputs, and the latest release and the moving
   tag are synced from the repository's releases. If release-please fails after
@@ -192,14 +199,23 @@ are skipped.
   `autorelease: tagged` once its release exists, since release-please cannot
   recreate an immutable release by itself. A rerun of a completed run changes
   nothing but reports its release again, so publishing jobs must be idempotent.
-  Creating a branch, such as `release/vN` at a release, is never reported as a
-  release.
+  Only the run of the release commit reports a release, since attestations name
+  the commit of their run as the source. When a run releases an older commit, or
+  may have done so before release-please failed, `Publish at the release commit`
+  waits up to 10 minutes for the newest push run of that commit on the branch to
+  complete and reruns all its jobs; that run then reports the release. It fails
+  with what to do by hand when there is no such run, when the run is still
+  running after the wait, or when GitHub refuses the rerun, such as for runs
+  older than 30 days. Creating a branch, such as `release/vN` at a release, is
+  never reported as a release.
 - **Moving tag.** `vX` is created or moved to the newest published,
   non-prerelease `vX.Y.Z` of the major version on the branch, only forward. `v0`
   follows the releases `0.y.z`, which are all pre-releases and carry no
   compatibility guarantee.
 - **Concurrency.** Release jobs of one repository run one at a time and queue
-  instead of being cancelled.
+  instead of being cancelled. A run that waited in the queue behind a failed run
+  can create the release of that run's commit; the rerun of that run publishes
+  it.
 
 ## Requirements
 
@@ -220,6 +236,7 @@ referenced with `$/`:
 - `token`: the App token or `GITHUB_TOKEN`;
 - `reconcile-pending-prs`: release pull requests left pending by a failed run;
 - `release-state`: the outputs, derived from the repository, as one JSON object;
+- `rerun-release-commit`: the rerun of the run of a release commit;
 - `keep-latest`: the newest release stays latest;
 - `sync-major-tag`: the moving tag `vX`;
 - `release-pr`: the release pull request, with one retry;

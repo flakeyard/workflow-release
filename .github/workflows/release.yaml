@@ -84,6 +84,9 @@ jobs:
     outputs:
       checked: ${{ steps.preflight.outcome == 'success' }}
       state: ${{ steps.state.outputs.state }}
+      elsewhere-tag: ${{ steps.state.outputs.elsewhere-tag }}
+      elsewhere-sha: ${{ steps.state.outputs.elsewhere-sha }}
+      elsewhere-created: ${{ steps.state.outputs.elsewhere-created }}
     steps:
       - id: preflight
         uses: $/.github/actions/preflight
@@ -142,6 +145,24 @@ jobs:
         run: |
           echo "::error::release-please failed; outputs and tags were synced. Rerun to retry."
           exit 1
+
+  # A run that waited in the queue can release an older commit. The run of
+  # that commit publishes it, so that attestations name the release commit.
+  rerun-release-commit:
+    name: Publish at the release commit
+    needs: release
+    if: ${{ !cancelled() && needs.release.outputs.elsewhere-tag != '' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: write # rerun the run of the release commit
+      contents: read # read the release
+    steps:
+      - uses: $/.github/actions/rerun-release-commit
+        with:
+          tag: ${{ needs.release.outputs.elsewhere-tag }}
+          sha: ${{ needs.release.outputs.elsewhere-sha }}
+          created: ${{ needs.release.outputs.elsewhere-created }}
 
   pull-request:
     name: Release pull request
