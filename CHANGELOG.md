@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1](https://github.com/flakeyard/workflow-release/compare/v0.1.0...v0.1.1) (2026-10-31)
+
+
+### Bug Fixes
+
+* fail when a released tag or its release cannot be read ([#2](https://github.com/flakeyard/workflow-release/issues/2)) ([faee35a](https://github.com/flakeyard/workflow-release/commit/faee35a999858b20e4d580a7673278d88981bc67))
+* publish a release only in the run of its commit ([#6](https://github.com/flakeyard/workflow-release/issues/6)) ([28d7b4e](https://github.com/flakeyard/workflow-release/commit/28d7b4e52b2a51c431faa8459a01227f2dce446c))
+
 ## 0.1.0 (2026-10-28)
 
 
