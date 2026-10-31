@@ -16,4 +16,4 @@ runs:
         REPO: ${{ github.repository }}
         SHA: ${{ github.sha }}
         MANIFEST: ${{ inputs.manifest-file }}
-      run: '"$GITHUB_ACTION_PATH/sync-major-tag.sh"'
+      run: '"$GITHUB_ACTION_PATH/run.sh"'

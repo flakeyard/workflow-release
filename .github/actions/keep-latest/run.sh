@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 # Marks the newest published, non-prerelease vX.Y.Z of REPO as latest.
+# shellcheck source-path=SCRIPTDIR
 set -euo pipefail
+shopt -s inherit_errexit
 : "${REPO:?}"
-# shellcheck source-path=SCRIPTDIR source=../lib/github.sh
-source "$(dirname "$0")/../lib/github.sh"
+lib=$(dirname "$0")/../lib
+# shellcheck source=../lib/github/api.sh
+source "$lib/github/api.sh"
+# shellcheck source=../lib/github/releases.sh
+source "$lib/github/releases.sh"
+# shellcheck source=../lib/report.sh
+source "$lib/report.sh"
 
 newest=$(published_releases false | tail -n 1)
 [[ -n $newest ]] || exit 0

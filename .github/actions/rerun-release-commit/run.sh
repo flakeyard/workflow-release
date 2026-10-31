@@ -4,10 +4,17 @@
 # publishes TAG: attestations name the commit of the run as the source. Unless
 # CREATED is true, release-please failed in this run, and TAG counts as created
 # by it only when it was published after this run first started.
+# shellcheck source-path=SCRIPTDIR
 set -euo pipefail
+shopt -s inherit_errexit
 : "${REPO:?}" "${RUN_ID:?}" "${BRANCH:?}" "${TAG:?}" "${COMMIT:?}"
-# shellcheck source-path=SCRIPTDIR source=../lib/github.sh
-source "$(dirname "$0")/../lib/github.sh"
+lib=$(dirname "$0")/../lib
+# shellcheck source=../lib/github/api.sh
+source "$lib/github/api.sh"
+# shellcheck source=../lib/github/releases.sh
+source "$lib/github/releases.sh"
+# shellcheck source=../lib/report.sh
+source "$lib/report.sh"
 
 # A run of the release commit that is still running is waited for this long.
 readonly WAIT_ATTEMPTS=40 WAIT_SECONDS=15

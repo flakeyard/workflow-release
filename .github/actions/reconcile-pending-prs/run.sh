@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
 # Relabels merged release pull requests into BASE that are still pending.
+# shellcheck source-path=SCRIPTDIR
 set -euo pipefail
+shopt -s inherit_errexit
 : "${REPO:?}" "${BASE:?}" "${MANIFEST:?}"
-# shellcheck source-path=SCRIPTDIR source=../lib/github.sh
-source "$(dirname "$0")/../lib/github.sh"
+lib=$(dirname "$0")/../lib
+# shellcheck source=../lib/github/api.sh
+source "$lib/github/api.sh"
+# shellcheck source=../lib/github/releases.sh
+source "$lib/github/releases.sh"
+# shellcheck source=../lib/manifest.sh
+source "$lib/manifest.sh"
+# shellcheck source=../lib/report.sh
+source "$lib/report.sh"
 
 # The label is filtered by the API, so only pending pull requests are listed.
 numbers=$(gh api --paginate \

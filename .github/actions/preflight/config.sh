@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 # Fails unless CONFIG and MANIFEST at SHA describe one root package tagged
 # vX.Y.Z with default labels, and on release/vN its major version is N.
+# shellcheck source-path=SCRIPTDIR
 set -euo pipefail
+shopt -s inherit_errexit
 : "${REPO:?}" "${SHA:?}" "${REF:?}" "${CONFIG:?}" "${MANIFEST:?}"
-# shellcheck source-path=SCRIPTDIR source=../lib/github.sh
-source "$(dirname "$0")/../lib/github.sh"
+lib=$(dirname "$0")/../lib
+# shellcheck source=../lib/github/contents.sh
+source "$lib/github/contents.sh"
+# shellcheck source=../lib/manifest.sh
+source "$lib/manifest.sh"
+# shellcheck source=../lib/report.sh
+source "$lib/report.sh"
 
 readonly RELEASE_BRANCH='^refs/heads/release/v([0-9]+)$'
 

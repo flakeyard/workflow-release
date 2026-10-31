@@ -10,4 +10,4 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.token }}
         REPO: ${{ github.repository }}
-      run: '"$GITHUB_ACTION_PATH/keep-latest.sh"'
+      run: '"$GITHUB_ACTION_PATH/run.sh"'

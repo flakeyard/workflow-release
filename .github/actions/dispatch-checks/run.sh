@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Starts WORKFLOW on the open release pull request into BASE, if there is one.
+# shellcheck source-path=SCRIPTDIR
 set -euo pipefail
+shopt -s inherit_errexit
 : "${REPO:?}" "${OWNER:?}" "${BASE:?}" "${WORKFLOW:?}"
-# shellcheck source-path=SCRIPTDIR source=../lib/github.sh
-source "$(dirname "$0")/../lib/github.sh"
+lib=$(dirname "$0")/../lib
+# shellcheck source=../lib/report.sh
+source "$lib/report.sh"
 
 head=release-please--branches--$BASE
 number=$(gh api "repos/$REPO/pulls?state=open&base=$BASE&head=$OWNER:$head" \

@@ -48,4 +48,4 @@ runs:
         CREATED_TAG: ${{ inputs.created-tag }}
         RELEASE_FAILED: ${{ inputs.release-failed }}
         NEW_BRANCH: ${{ github.event.created }}
-      run: '"$GITHUB_ACTION_PATH/release-state.sh"'
+      run: '"$GITHUB_ACTION_PATH/run.sh"'

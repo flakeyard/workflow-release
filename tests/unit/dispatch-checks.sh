@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of dispatch-checks.
 
-script=dispatch-checks/dispatch-checks.sh
+script=dispatch-checks/run.sh
 
 # dispatch_setup BASE BODY: the open release pull requests into BASE are BODY.
 dispatch_setup() {

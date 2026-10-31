@@ -2,6 +2,7 @@
 # Fails unless the run is a push to a release branch and the App inputs are
 # complete.
 set -euo pipefail
+shopt -s inherit_errexit
 : "${CLIENT_ID?}" "${HAS_KEY:?}" "${EVENT:?}" "${REF:?}"
 
 if [[ $EVENT != push ]]; then

@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of sync-major-tag.
 
-script=sync-major-tag/sync-major-tag.sh
+script=sync-major-tag/run.sh
 
 # sync_setup VERSION: the manifest at VERSION and two pages of releases.
 sync_setup() {
