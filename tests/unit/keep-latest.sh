@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of keep-latest.
 
-script=keep-latest/keep-latest.sh
+script=keep-latest/run.sh
 
 # latest_setup: v2.0.0 is the newest release that is not a pre-release.
 latest_setup() {

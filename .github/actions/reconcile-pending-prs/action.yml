@@ -17,4 +17,4 @@ runs:
         REPO: ${{ github.repository }}
         BASE: ${{ github.ref_name }}
         MANIFEST: ${{ inputs.manifest-file }}
-      run: '"$GITHUB_ACTION_PATH/reconcile-pending-prs.sh"'
+      run: '"$GITHUB_ACTION_PATH/run.sh"'

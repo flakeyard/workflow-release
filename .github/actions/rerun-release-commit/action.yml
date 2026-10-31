@@ -24,4 +24,4 @@ runs:
         TAG: ${{ inputs.tag }}
         COMMIT: ${{ inputs.sha }}
         CREATED: ${{ inputs.created }}
-      run: '"$GITHUB_ACTION_PATH/rerun-release-commit.sh"'
+      run: '"$GITHUB_ACTION_PATH/run.sh"'

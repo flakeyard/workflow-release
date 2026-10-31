@@ -25,7 +25,7 @@ runs:
         EVENT: ${{ github.event_name }}
         REF: ${{ github.ref }}
         DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-      run: '"$GITHUB_ACTION_PATH/check-inputs.sh"'
+      run: '"$GITHUB_ACTION_PATH/inputs.sh"'
     - name: Check the release-please configuration
       shell: bash
       env:
@@ -35,4 +35,4 @@ runs:
         REF: ${{ github.ref }}
         CONFIG: ${{ inputs.config-file }}
         MANIFEST: ${{ inputs.manifest-file }}
-      run: '"$GITHUB_ACTION_PATH/check-config.sh"'
+      run: '"$GITHUB_ACTION_PATH/config.sh"'

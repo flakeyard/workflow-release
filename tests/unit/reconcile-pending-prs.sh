@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of reconcile-pending-prs.
 
-script=reconcile-pending-prs/reconcile-pending-prs.sh
+script=reconcile-pending-prs/run.sh
 
 # pending_prs BODY: the closed pull requests labelled pending.
 pending_prs() {

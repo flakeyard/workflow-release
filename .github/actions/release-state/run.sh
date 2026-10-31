@@ -4,10 +4,19 @@
 # that this run created, or may have created before release-please failed, is
 # written as elsewhere-tag and elsewhere-sha, for the run of that commit to
 # publish it.
+# shellcheck source-path=SCRIPTDIR
 set -euo pipefail
+shopt -s inherit_errexit
 : "${REPO:?}" "${SHA:?}" "${MANIFEST:?}"
-# shellcheck source-path=SCRIPTDIR source=../lib/github.sh
-source "$(dirname "$0")/../lib/github.sh"
+lib=$(dirname "$0")/../lib
+# shellcheck source=../lib/github/releases.sh
+source "$lib/github/releases.sh"
+# shellcheck source=../lib/github/tags.sh
+source "$lib/github/tags.sh"
+# shellcheck source=../lib/manifest.sh
+source "$lib/manifest.sh"
+# shellcheck source=../lib/report.sh
+source "$lib/report.sh"
 
 # A tag that release-please has just created can take a moment to be visible.
 readonly TAG_ATTEMPTS=5 TAG_RETRY_SECONDS=3

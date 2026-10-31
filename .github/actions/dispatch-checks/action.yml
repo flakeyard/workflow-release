@@ -15,4 +15,4 @@ runs:
         OWNER: ${{ github.repository_owner }}
         BASE: ${{ github.ref_name }}
         WORKFLOW: ${{ inputs.check-workflow }}
-      run: '"$GITHUB_ACTION_PATH/dispatch-checks.sh"'
+      run: '"$GITHUB_ACTION_PATH/run.sh"'

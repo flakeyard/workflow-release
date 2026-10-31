@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of release-state.
 
-script=release-state/release-state.sh
+script=release-state/run.sh
 
 setup
 released_at 1.2.3 "$SHA"

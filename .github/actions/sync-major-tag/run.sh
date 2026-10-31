@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
 # Moves vX of the manifest's major version forward to its newest release.
+# shellcheck source-path=SCRIPTDIR
 set -euo pipefail
+shopt -s inherit_errexit
 : "${REPO:?}" "${SHA:?}" "${MANIFEST:?}"
-# shellcheck source-path=SCRIPTDIR source=../lib/github.sh
-source "$(dirname "$0")/../lib/github.sh"
+lib=$(dirname "$0")/../lib
+# shellcheck source=../lib/github/releases.sh
+source "$lib/github/releases.sh"
+# shellcheck source=../lib/github/tags.sh
+source "$lib/github/tags.sh"
+# shellcheck source=../lib/manifest.sh
+source "$lib/manifest.sh"
+# shellcheck source=../lib/report.sh
+source "$lib/report.sh"
 
 readonly MAJOR_VERSION='^(0|[1-9][0-9]*)$'
 

@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of rerun-release-commit.
 
-script=rerun-release-commit/rerun-release-commit.sh
+script=rerun-release-commit/run.sh
 # When this run first started, and a release published before and after it.
 started=2026-10-31T12:00:00Z before=2026-10-31T11:00:00Z after=2026-10-31T12:01:00Z
 
