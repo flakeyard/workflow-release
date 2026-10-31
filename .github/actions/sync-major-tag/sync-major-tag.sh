@@ -5,34 +5,26 @@ set -euo pipefail
 # shellcheck source-path=SCRIPTDIR source=../lib/github.sh
 source "$(dirname "$0")/../lib/github.sh"
 
-version=$(manifest_version "$MANIFEST" "$SHA")
+readonly MAJOR_VERSION='^(0|[1-9][0-9]*)$'
+
+version=$(root_version "$SHA")
 major=${version%%.*}
-if [[ ! $major =~ ^(0|[1-9][0-9]*)$ ]]; then
-  echo "::error::unexpected version $version in $MANIFEST"
-  exit 1
-fi
+[[ $major =~ $MAJOR_VERSION ]] || fail "unexpected version $version in $MANIFEST"
 
 latest=$(newest_release "$major")
 if [[ -z $latest ]]; then
   summary "no release of v$major yet"
   exit 0
 fi
-status=0
-target=$(tag_commit "$latest") || status=$?
-if ((status == 3)); then
-  echo "::error::release $latest has no tag"
-  exit 1
-fi
-((status == 0)) || exit 1
+target=$(find_tag_commit "$latest")
+[[ -n $target ]] || fail "release $latest has no tag"
 
-status=0
-current=$(tag_commit "v$major") || status=$?
-if ((status == 3)); then
+current=$(find_tag_commit "v$major")
+if [[ -z $current ]]; then
   gh api --silent -X POST "repos/$REPO/git/refs" -f ref="refs/tags/v$major" -f sha="$target"
   summary "created v$major at $latest"
   exit 0
 fi
-((status == 0)) || exit 1
 
 if [[ $current == "$target" ]]; then
   summary "v$major already at $latest"

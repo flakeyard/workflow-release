@@ -14,18 +14,14 @@ for number in $numbers; do
   pr=$(api_get "repos/$REPO/pulls/$number")
   [[ $(jq -r .base.ref <<<"$pr") == "$BASE" ]] || continue
   # The released version is the manifest's at the merge commit.
-  version=$(manifest_version "$MANIFEST" "$(jq -r .merge_commit_sha <<<"$pr")")
+  merge_commit=$(jq -r .merge_commit_sha <<<"$pr")
+  version=$(root_version "$merge_commit")
   tag=v$version
-  # Only published releases count; the endpoint answers a draft with HTTP 404.
-  status=0
-  api_get "repos/$REPO/releases/tags/$tag" >/dev/null || status=$?
-  ((status == 3)) && continue
-  ((status == 0)) || exit 1
+  release=$(published_release "$tag")
+  [[ -n $release ]] || continue
   # Add the new label first: a failure in between leaves the pull request
   # pending, so the next run retries.
   gh api --silent -X POST "repos/$REPO/issues/$number/labels" -f "labels[]=autorelease: tagged"
-  status=0
-  api_delete "repos/$REPO/issues/$number/labels/autorelease:%20pending" || status=$?
-  ((status == 0 || status == 3)) || exit 1
+  api_delete_if_exists "repos/$REPO/issues/$number/labels/autorelease:%20pending"
   summary "marked #$number as tagged: $tag exists"
 done

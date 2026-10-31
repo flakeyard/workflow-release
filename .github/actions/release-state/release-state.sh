@@ -9,81 +9,82 @@ source "$(dirname "$0")/../lib/github.sh"
 # A tag that release-please has just created can take a moment to be visible.
 readonly TAG_ATTEMPTS=5 TAG_RETRY_SECONDS=3
 
+# is_branch_creation: the push created a branch, such as release/vN at a
+# release, and released nothing new.
+is_branch_creation() {
+  [[ ${NEW_BRANCH:-} == true && ${CREATED:-} != true ]]
+}
+
 # created_in_this_run TAG: release-please created TAG in this run.
 created_in_this_run() {
   local tag=$1
   [[ ${CREATED:-} == true && ${CREATED_TAG:-} == "$tag" ]]
 }
 
-# tag_commit_retrying TAG ATTEMPTS: like tag_commit, but tries up to ATTEMPTS
-# times while the tag does not exist.
-tag_commit_retrying() {
-  local tag=$1 attempts=$2 attempt status
-  for ((attempt = 1; ; attempt++)); do
-    status=0
-    tag_commit "$tag" || status=$?
-    ((status == 3 && attempt < attempts)) || return "$status"
-    sleep "$TAG_RETRY_SECONDS"
-  done
+# releases_this_run TAG COMMIT: TAG at COMMIT is the release of this run,
+# either at its commit or created by it. A run that waited in the queue
+# releases an older commit.
+releases_this_run() {
+  local tag=$1 commit=$2
+  [[ $commit == "$SHA" ]] || created_in_this_run "$tag"
 }
 
-version=$(manifest_version "$MANIFEST" "$SHA")
-if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "::error file=$MANIFEST::the root version must be X.Y.Z, not '$version'"
-  exit 1
-fi
+# release_tag_commit TAG: print the commit of TAG, empty when there is no such
+# tag. A tag created in this run is tried again until it is visible.
+release_tag_commit() {
+  local tag=$1 attempts=1 attempt commit=""
+  if created_in_this_run "$tag"; then attempts=$TAG_ATTEMPTS; fi
+  for ((attempt = 1; attempt <= attempts; attempt++)); do
+    ((attempt == 1)) || sleep "$TAG_RETRY_SECONDS"
+    commit=$(find_tag_commit "$tag") || return 1
+    [[ -z $commit ]] || break
+  done
+  printf '%s\n' "$commit"
+}
+
+# state_json VERSION COMMIT RELEASE: print the output, one JSON object with
+# string fields; all of them empty but released=false when VERSION is empty.
+state_json() {
+  local version=$1 commit=$2 release=$3 released=false major minor patch
+  if [[ -n $version ]]; then released=true; fi
+  IFS=. read -r major minor patch <<<"$version"
+  jq -nc --arg released "$released" \
+    --arg tag "${version:+v$version}" --arg version "$version" \
+    --arg major "$major" --arg minor "$minor" --arg patch "$patch" \
+    --arg prerelease "$(jq -r '.prerelease | values' <<<"$release")" \
+    --arg sha "$commit" --arg release-url "$(jq -r '.html_url | values' <<<"$release")" \
+    '$ARGS.named'
+}
+
+version=$(root_version "$SHA")
+check_release_version "$version"
 tag=v$version
-released=false
 commit=""
 
-if [[ ${NEW_BRANCH:-} == true && ${CREATED:-} != true ]]; then
-  # Creating a branch, such as release/vN at a release, releases nothing new.
+if is_branch_creation; then
   echo "::notice::branch created at $SHA; not a new release"
 else
-  attempts=1
-  if created_in_this_run "$tag"; then attempts=$TAG_ATTEMPTS; fi
-  status=0
-  commit=$(tag_commit_retrying "$tag" "$attempts") || status=$?
-  if ((status == 3)) && created_in_this_run "$tag"; then
-    echo "::error::release-please created $tag, but the tag does not exist"
-    exit 1
-  fi
-  if ((status == 0)); then
-    if [[ $commit == "$SHA" ]]; then
-      released=true
-    elif created_in_this_run "$tag"; then
-      # A run that waited in the queue released an older commit.
-      released=true
-      echo "::notice::$tag was released at $commit, not at $SHA"
-    elif [[ ${RELEASE_FAILED:-} == true ]]; then
-      echo "::warning::$tag exists at $commit; if it was released by this run" \
-        "before release-please failed, rerun the run of $commit to publish it"
-    fi
-  elif ((status != 3)); then
-    exit 1
+  commit=$(release_tag_commit "$tag")
+  if [[ -z $commit ]] && created_in_this_run "$tag"; then
+    fail "release-please created $tag, but the tag does not exist"
   fi
 fi
 
-if [[ $released == true ]]; then
-  # The endpoint returns only published releases: a draft is HTTP 404 too.
-  status=0
-  release=$(api_get "repos/$REPO/releases/tags/$tag") || status=$?
-  if ((status == 3)); then
-    echo "::error::tag $tag exists but has no published release"
-    exit 1
+if [[ -n $commit ]] && releases_this_run "$tag" "$commit"; then
+  if [[ $commit != "$SHA" ]]; then
+    echo "::notice::$tag was released at $commit, not at $SHA"
   fi
-  ((status == 0)) || exit 1
+  release=$(published_release "$tag")
+  [[ -n $release ]] || fail "tag $tag exists but has no published release"
+  state=$(state_json "$version" "$commit" "$release")
+  released=true
+else
+  if [[ -n $commit && ${RELEASE_FAILED:-} == true ]]; then
+    echo "::warning::$tag exists at $commit; if it was released by this run" \
+      "before release-please failed, rerun the run of $commit to publish it"
+  fi
+  state=$(state_json "" "" "")
+  released=false
 fi
-
-# One JSON output with string fields, all empty unless released.
-fields=(released "$released" tag "" version "" major "" minor "" patch ""
-  prerelease "" sha "" release-url "")
-if [[ $released == true ]]; then
-  IFS=. read -r major minor patch <<<"$version"
-  fields=(released true tag "$tag" version "$version" major "$major"
-    minor "$minor" patch "$patch" prerelease "$(jq -r .prerelease <<<"$release")"
-    sha "$commit" release-url "$(jq -r .html_url <<<"$release")")
-fi
-echo "state=$(jq -nc '$ARGS.positional as $a | [range(0; $a | length; 2) | {($a[.]): $a[. + 1]}] | add' \
-  --args "${fields[@]}")" >>"$GITHUB_OUTPUT"
+echo "state=$state" >>"$GITHUB_OUTPUT"
 summary "manifest $version, released: $released"
