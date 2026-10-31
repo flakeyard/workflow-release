@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Writes released=true and the release details to GITHUB_OUTPUT when SHA is a
-# published release, released=false otherwise.
+# published release, released=false otherwise. A release at an older commit
+# that this run created, or may have created before release-please failed, is
+# written as elsewhere-tag and elsewhere-sha, for the run of that commit to
+# publish it.
 set -euo pipefail
 : "${REPO:?}" "${SHA:?}" "${MANIFEST:?}"
 # shellcheck source-path=SCRIPTDIR source=../lib/github.sh
@@ -21,14 +24,6 @@ created_in_this_run() {
   [[ ${CREATED:-} == true && ${CREATED_TAG:-} == "$tag" ]]
 }
 
-# releases_this_run TAG COMMIT: TAG at COMMIT is the release of this run,
-# either at its commit or created by it. A run that waited in the queue
-# releases an older commit.
-releases_this_run() {
-  local tag=$1 commit=$2
-  [[ $commit == "$SHA" ]] || created_in_this_run "$tag"
-}
-
 # release_tag_commit TAG: print the commit of TAG, empty when there is no such
 # tag. A tag created in this run is tried again until it is visible.
 release_tag_commit() {
@@ -40,6 +35,40 @@ release_tag_commit() {
     [[ -z $commit ]] || break
   done
   printf '%s\n' "$commit"
+}
+
+# at_this_commit COMMIT: COMMIT is the run's commit. Only the run of a commit
+# publishes its release, so that attestations name the release commit.
+at_this_commit() {
+  local commit=$1
+  [[ $commit == "$SHA" ]]
+}
+
+# write_elsewhere TAG COMMIT CREATED: write the release TAG at another commit;
+# CREATED is true when release-please reported creating it in this run.
+write_elsewhere() {
+  local tag=$1 commit=$2 created=$3
+  {
+    echo "elsewhere-tag=$tag"
+    echo "elsewhere-sha=$commit"
+    echo "elsewhere-created=$created"
+  } >>"$GITHUB_OUTPUT"
+}
+
+# report_elsewhere TAG COMMIT: when this run created TAG at COMMIT, an older
+# commit, or may have done so before release-please failed, write it for the
+# run of COMMIT to publish. A run that waited in the queue releases an older
+# commit.
+report_elsewhere() {
+  local tag=$1 commit=$2
+  if created_in_this_run "$tag"; then
+    echo "::notice::$tag was released at $commit, not at $SHA; the run of $commit publishes it"
+    write_elsewhere "$tag" "$commit" true
+  elif [[ ${RELEASE_FAILED:-} == true ]]; then
+    echo "::notice::$tag exists at $commit; if this run released it before" \
+      "release-please failed, the run of $commit publishes it"
+    write_elsewhere "$tag" "$commit" false
+  fi
 }
 
 # state_json VERSION COMMIT RELEASE: print the output, one JSON object with
@@ -70,19 +99,13 @@ else
   fi
 fi
 
-if [[ -n $commit ]] && releases_this_run "$tag" "$commit"; then
-  if [[ $commit != "$SHA" ]]; then
-    echo "::notice::$tag was released at $commit, not at $SHA"
-  fi
+if [[ -n $commit ]] && at_this_commit "$commit"; then
   release=$(published_release "$tag")
   [[ -n $release ]] || fail "tag $tag exists but has no published release"
   state=$(state_json "$version" "$commit" "$release")
   released=true
 else
-  if [[ -n $commit && ${RELEASE_FAILED:-} == true ]]; then
-    echo "::warning::$tag exists at $commit; if it was released by this run" \
-      "before release-please failed, rerun the run of $commit to publish it"
-  fi
+  if [[ -n $commit ]]; then report_elsewhere "$tag" "$commit"; fi
   state=$(state_json "" "" "")
   released=false
 fi

@@ -19,7 +19,7 @@ setup() {
   export REPO=o/r SHA=aaa REF=refs/heads/main
   export MANIFEST=.release-please-manifest.json CONFIG=release-please-config.json
   unset NEW_BRANCH CREATED CREATED_TAG RELEASE_FAILED CLIENT_ID HAS_KEY EVENT \
-    DEFAULT_BRANCH BASE OWNER WORKFLOW FAIL_ON
+    DEFAULT_BRANCH BASE OWNER WORKFLOW FAIL_ON RUN_ID BRANCH TAG COMMIT
   params=()
 }
 
@@ -70,6 +70,13 @@ late() {
   local file
   file=$(fixture_file "$1")
   mv -- "$file" "$file.late"
+}
+
+# later PATH BODY: answer GET PATH with BODY after the script sleeps, like a
+# run that completes.
+later() {
+  local path=$1 body=$2
+  printf '%s\n' "$body" >"$(fixture_file "$path").late"
 }
 
 # file_fixture PATH REF CONTENT: answer the contents API for a file, with the
@@ -148,6 +155,11 @@ expect() {
       local value
       value=$(sed -n 's/^state=//p' "$GITHUB_OUTPUT" | jq -r --arg k "$2" '.[$k]')
       [[ $value == "$3" ]] || report "state.$2 is '$value', expected '$3'"
+      ;;
+    output)
+      local value
+      value=$(sed -n "s/^$2=//p" "$GITHUB_OUTPUT")
+      [[ $value == "$3" ]] || report "output $2 is '$value', expected '$3'"
       ;;
     call) grep -qF -- "$2" "$CALLS" || report "no call '$2' in: $(paste -sd';' "$CALLS")" ;;
     no-call) ! grep -qF -- "$2" "$CALLS" || report "unexpected call '$2'" ;;

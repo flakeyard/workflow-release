@@ -1,7 +1,8 @@
 name: Derive the release state
 description: >-
-  Reports whether the run's commit is a published release, from the manifest
-  and the release tag, so that a rerun after a failure reports it again.
+  Reports whether the run's commit is a published release, from the manifest and
+  the release tag, so that a rerun after a failure reports it again; and a
+  release that this run created at an older commit.
 inputs:
   token:
     required: true
@@ -22,6 +23,17 @@ outputs:
       JSON object with the string fields released, tag, version, major, minor,
       patch, prerelease, sha and release-url; empty strings unless released.
     value: ${{ steps.state.outputs.state }}
+  elsewhere-tag:
+    description: >-
+      Tag of a release at an older commit that this run created, or may have
+      created before release-please failed; empty otherwise.
+    value: ${{ steps.state.outputs.elsewhere-tag }}
+  elsewhere-sha:
+    description: Commit of that release.
+    value: ${{ steps.state.outputs.elsewhere-sha }}
+  elsewhere-created:
+    description: "'true' when release-please reported creating it in this run."
+    value: ${{ steps.state.outputs.elsewhere-created }}
 runs:
   using: composite
   steps:

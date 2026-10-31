@@ -20,22 +20,38 @@ released_at 1.2.3 bbb
 run "release-state: release at another commit" ok "$script"
 expect state released false
 expect state tag ""
+expect output elsewhere-tag ""
 finish
 
 setup
 released_at 1.2.3 bbb
 export RELEASE_FAILED=true
-run "release-state: another commit after a failure warns" ok "$script"
+run "release-state: another commit after a failure may be this run's" ok "$script"
 expect state released false
-expect message "rerun the run of bbb"
+expect output elsewhere-tag v1.2.3
+expect output elsewhere-sha bbb
+expect output elsewhere-created false
+expect message "the run of bbb publishes it"
 finish
 
 setup
 released_at 1.2.3 bbb
 export CREATED=true CREATED_TAG=v1.2.3
 run "release-state: released by this run at an older commit" ok "$script"
+expect state released false
+expect state sha ""
+expect output elsewhere-tag v1.2.3
+expect output elsewhere-sha bbb
+expect output elsewhere-created true
+expect message "v1.2.3 was released at bbb, not at aaa"
+finish
+
+setup
+released_at 1.2.3 "$SHA"
+export CREATED=true CREATED_TAG=v1.2.3
+run "release-state: released by this run at its commit" ok "$script"
 expect state released true
-expect state sha bbb
+expect output elsewhere-tag ""
 finish
 
 setup
@@ -43,6 +59,7 @@ released_at 1.2.3 bbb
 export CREATED=true CREATED_TAG=v1.2.2
 run "release-state: this run released another tag" ok "$script"
 expect state released false
+expect output elsewhere-tag ""
 finish
 
 setup
