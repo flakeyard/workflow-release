@@ -34,7 +34,7 @@ file_fixture() {
 
 manifest() { file_fixture "$MANIFEST" "${2:-aaa}" "{\".\": \"$1\"}"; }
 tag() { fixture "repos/o/r/git/ref/tags/$1" "{\"object\":{\"type\":\"commit\",\"sha\":\"$2\"}}"; }
-releases() { fixture "repos/o/r/releases" "$1"; }
+releases() { fixture "repos/o/r/releases?per_page=100" "$1"; }
 # release TAG [PRERELEASE]: a published release. The API answers a draft by
 # tag with HTTP 404, so a draft has no fixture.
 release() {
@@ -311,7 +311,7 @@ sync_setup() {
   releases "$sync_releases"
   # A second page of releases.
   printf '%s\n' '[{"tag_name":"v2.0.0","draft":false,"prerelease":false},
-    {"tag_name":"v0.2.0","draft":false,"prerelease":true}]' >"$FIXTURES/repos_o_r_releases.2"
+    {"tag_name":"v0.2.0","draft":false,"prerelease":true}]' >"$FIXTURES/repos_o_r_releases_per_page_100.2"
 }
 
 sync_setup 1.10.0
