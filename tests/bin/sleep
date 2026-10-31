@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Stub of sleep for tests: returns at once. A fixture saved as <key>.late
+# appears under <key> after the first sleep, like a ref that becomes visible.
+set -euo pipefail
+shopt -s nullglob
+for late in "$FIXTURES"/*.late; do
+  mv -- "$late" "${late%.late}"
+done

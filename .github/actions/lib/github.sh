@@ -28,16 +28,19 @@ api_get() { api_request GET "$1"; }
 api_delete() { api_request DELETE "$1" >/dev/null; }
 
 # tag_commit TAG: print the commit a tag points at, following annotated tags.
-# Returns like api_get.
+# Returns like api_get; 3 means only that the ref does not exist, so an error
+# while reading an annotated tag returns 1.
 tag_commit() {
-  local ref sha
+  local ref sha annotated status=0
   ref=$(api_get "repos/$REPO/git/ref/tags/$1") || return
   sha=$(jq -r .object.sha <<<"$ref")
   if [[ $(jq -r .object.type <<<"$ref") == tag ]]; then
-    api_get "repos/$REPO/git/tags/$sha" | jq -r .object.sha
-  else
-    echo "$sha"
+    annotated=$(api_get "repos/$REPO/git/tags/$sha") || status=$?
+    if ((status == 3)); then echo "tag $1: object $sha not found (HTTP 404)" >&2; fi
+    ((status == 0)) || return 1
+    sha=$(jq -r .object.sha <<<"$annotated")
   fi
+  echo "$sha"
 }
 
 # file_at PATH REF: print a file of the repository at a commit.

@@ -8,17 +8,35 @@
 # on stdout and the message on stderr.
 #
 # Other methods and "gh workflow run" are appended to $CALLS and succeed,
-# unless "<METHOD> <PATH>" is listed in $FAIL_ON (one per line), which fails
-# with HTTP 502.
+# unless "<METHOD> <PATH> [STATUS]" is listed in $FAIL_ON (one per line), which
+# fails with HTTP STATUS, 502 by default.
 set -euo pipefail
 
 key() { echo "${1//[\/?&=]/_}"; }
 
-# fail STATUS MESSAGE: fail like gh does on an HTTP error.
+# fail STATUS [MESSAGE]: fail like gh does on an HTTP error.
 fail() {
-  printf '{"message":"%s","status":"%s"}\n' "$2" "$1"
-  echo "gh: $2 (HTTP $1)" >&2
+  local status=$1 message=${2:-Error}
+  printf '{"message":"%s","status":"%s"}\n' "$message" "$status"
+  echo "gh: $message (HTTP $status)" >&2
   exit 1
+}
+
+# failure_status METHOD PATH: print the HTTP status that FAIL_ON gives the
+# call; fails when the call succeeds.
+failure_status() {
+  local call="$1 $2" line
+  while IFS= read -r line; do
+    if [[ $line == "$call" ]]; then
+      echo 502
+      return 0
+    fi
+    if [[ $line =~ ^(.*)\ ([0-9]{3})$ && ${BASH_REMATCH[1]} == "$call" ]]; then
+      echo "${BASH_REMATCH[2]}"
+      return 0
+    fi
+  done <<<"${FAIL_ON:-}"
+  return 1
 }
 
 if [[ $1 == workflow ]]; then
@@ -68,8 +86,8 @@ fi
 
 if [[ $method != GET ]]; then
   echo "$method $path ${fields[*]}" >>"$CALLS"
-  if grep -qxF -- "$method $path" <<<"${FAIL_ON:-}"; then
-    fail 502 "Bad Gateway"
+  if status=$(failure_status "$method" "$path"); then
+    fail "$status"
   fi
   exit 0
 fi
