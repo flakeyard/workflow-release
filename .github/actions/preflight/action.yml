@@ -1,8 +1,8 @@
 name: Preflight
 description: >-
   Fails before anything is written unless the run is a push to a release
-  branch, the App inputs are complete and the release-please configuration
-  is supported.
+  branch, the App inputs are complete where the key is visible, and the
+  release-please configuration is supported.
 inputs:
   app-client-id:
     description: Client ID of the App, or empty.
@@ -10,6 +10,11 @@ inputs:
   has-key:
     description: "'true' when APP_PRIVATE_KEY was passed."
     required: true
+  key-visible:
+    description: >-
+      'false' when APP_PRIVATE_KEY may be a secret of an environment that this
+      job does not use, so that has-key says nothing.
+    default: "true"
   config-file:
     required: true
   manifest-file:
@@ -22,6 +27,7 @@ runs:
       env:
         CLIENT_ID: ${{ inputs.app-client-id }}
         HAS_KEY: ${{ inputs.has-key }}
+        KEY_VISIBLE: ${{ inputs.key-visible }}
         EVENT: ${{ github.event_name }}
         REF: ${{ github.ref }}
         DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}

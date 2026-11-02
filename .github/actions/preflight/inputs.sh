@@ -1,24 +1,22 @@
 #!/usr/bin/env bash
-# Fails unless the run is a push to a release branch and the App inputs are
-# complete.
+# Fails unless the run is a push to a release branch and, when KEY_VISIBLE is
+# true, the App inputs are complete.
+# shellcheck source-path=SCRIPTDIR
 set -euo pipefail
 shopt -s inherit_errexit
-: "${CLIENT_ID?}" "${HAS_KEY:?}" "${EVENT:?}" "${REF:?}"
+: "${CLIENT_ID?}" "${HAS_KEY:?}" "${KEY_VISIBLE:?}" "${EVENT:?}" "${REF:?}"
+lib=$(dirname "$0")/../lib
+# shellcheck source=../lib/app-key.sh
+source "$lib/app-key.sh"
 
 if [[ $EVENT != push ]]; then
   echo "::error::the release workflow runs only on push events, not $EVENT"
   exit 1
 fi
 : "${DEFAULT_BRANCH:?}"
-if [[ -n $CLIENT_ID && $HAS_KEY != true ]]; then
-  echo "::error::app-client-id is set but APP_PRIVATE_KEY is empty;" \
-    "pass it under that name and set environment if it is an environment secret"
-  exit 1
-fi
-if [[ -z $CLIENT_ID && $HAS_KEY == true ]]; then
-  echo "::error::APP_PRIVATE_KEY is set but app-client-id is empty"
-  exit 1
-fi
+# An environment secret is visible only in jobs of that environment; the
+# token action checks the key there.
+if [[ $KEY_VISIBLE == true ]]; then check_app_key "$CLIENT_ID" "$HAS_KEY"; fi
 if [[ $REF != "refs/heads/$DEFAULT_BRANCH" &&
   ! $REF =~ ^refs/heads/release/v[1-9][0-9]*$ ]]; then
   echo "::error::releases run only on $DEFAULT_BRANCH and release/vN, not $REF"
