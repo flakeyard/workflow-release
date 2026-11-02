@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>flakeyard/renovate-config//internal/workflow#v0.1.0"],
+  "packageRules": [
+    {
+      "description": "The product workflow (FY-0007, FY-0030)",
+      "matchFileNames": [".github/workflows/release.yaml"],
+      "semanticCommitType": "fix"
+    }
+  ]
+}
