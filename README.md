@@ -426,6 +426,10 @@ this repository has no CI checks yet. Until they are released:
   the atoms will provide them;
 - pull request titles are checked by the reviewer; `workflow-check` will check
   them;
+- CI does not check that the tag of the preset in `renovate.json` belongs to an
+  immutable release
+  ([FY-0028](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0028-supply-chain.md));
+  `workflow-check` will check it;
 - OpenSSF Scorecard comes with `workflow-check`.
 
 ## License
