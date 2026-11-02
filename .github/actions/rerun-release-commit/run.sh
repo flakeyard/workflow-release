@@ -64,7 +64,7 @@ wait_until_completed() {
 rerun() {
   local id=$1 url=$2
   api_request POST "$(run_path "$id")/rerun" >/dev/null \
-    || fail "could not rerun $url, the run of $COMMIT (runs can be rerun for 30 days); rerun it, or publish $TAG from $COMMIT by hand"
+    || fail "could not rerun $url, the run of $COMMIT (runs can be rerun for 30 days); rerun it, or abandon $TAG and cut the next patch release"
 }
 
 require_created_by_this_run
@@ -72,7 +72,7 @@ require_created_by_this_run
 workflow=$(workflow_id "$RUN_ID")
 run=$(commit_run "$workflow" "$BRANCH" "$COMMIT")
 [[ -n $run ]] \
-  || fail "no push run of this workflow at $COMMIT on $BRANCH; publish $TAG from $COMMIT by hand"
+  || fail "no push run of this workflow at $COMMIT on $BRANCH; abandon $TAG and cut the next patch release"
 id=$(jq -r .id <<<"$run")
 url=$(jq -r .html_url <<<"$run")
 wait_until_completed "$id" "$url"

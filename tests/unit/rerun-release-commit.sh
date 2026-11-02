@@ -62,13 +62,14 @@ finish
 rerun_setup
 fixture "$(runs_path)" '{"workflow_runs":[]}'
 run "rerun-release-commit: no run of the release commit fails" fail "$script"
-expect message "no push run of this workflow at bbb on main; publish v1.2.3 from bbb by hand"
+expect message "no push run of this workflow at bbb on main; abandon v1.2.3 and cut the next patch release"
 expect no-calls
 finish
 
 rerun_setup FAIL_ON="POST repos/o/r/actions/runs/77/rerun 403"
 run "rerun-release-commit: rerun refused fails" fail "$script"
 expect message "could not rerun https://x/runs/77"
+expect message "abandon v1.2.3 and cut the next patch release"
 expect message "HTTP 403"
 finish
 
