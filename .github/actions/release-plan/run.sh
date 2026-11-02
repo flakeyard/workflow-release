@@ -1,0 +1,282 @@
+#!/usr/bin/env bash
+# Decides whether the job that releases with the key is due on this push of
+# SHA to BASE, and writes due and reason to GITHUB_OUTPUT:
+# - release: SHA merged a release pull request that is still pending;
+# - takeover: an earlier one is pending, and the run of its merge commit
+#   failed or never ran;
+# - repair: MOVE_MAJOR_TAG is true and vX must be created or moved forward.
+# A release or repair whose approval was rejected is not due again. The
+# decision only saves approvals and is no security boundary: the job that
+# releases derives what it does from the repository.
+# shellcheck source-path=SCRIPTDIR
+set -euo pipefail
+shopt -s inherit_errexit
+: "${REPO:?}" "${BASE:?}" "${SHA:?}" "${RUN_ID:?}" "${MANIFEST:?}"
+: "${ENVIRONMENT?}" "${MOVE_MAJOR_TAG:?}"
+lib=$(dirname "$0")/../lib
+# shellcheck source=../lib/github/api.sh
+source "$lib/github/api.sh"
+# shellcheck source=../lib/github/pulls.sh
+source "$lib/github/pulls.sh"
+# shellcheck source=../lib/github/releases.sh
+source "$lib/github/releases.sh"
+# shellcheck source=../lib/github/runs.sh
+source "$lib/github/runs.sh"
+# shellcheck source=../lib/clock.sh
+source "$lib/clock.sh"
+# shellcheck source=../lib/major-tag.sh
+source "$lib/major-tag.sh"
+# shellcheck source=../lib/manifest.sh
+source "$lib/manifest.sh"
+# shellcheck source=../lib/report.sh
+source "$lib/report.sh"
+
+# A run can be approved and rerun for 30 days; the last day is left for that.
+readonly MAX_RUN_AGE_DAYS=29 SECONDS_PER_DAY=86400
+# Earlier push runs searched for the last approval request of a repair.
+readonly EARLIER_RUNS=20
+readonly PENDING_LABEL='autorelease: pending'
+readonly RELEASE_HEAD=release-please--branches--$BASE
+
+due=false reason=""
+
+# decide REASON: the job that releases is due; the first reason is reported.
+decide() {
+  local why=$1
+  [[ $due == true ]] || reason=$why
+  due=true
+}
+
+# is_branch_creation: the push created a branch, such as release/vN at a
+# release; nothing is pending on a new branch.
+is_branch_creation() {
+  [[ ${NEW_BRANCH:-} == true ]]
+}
+
+# describe PR: print a pull request for the summary. Its title and head
+# branch are chosen by others and printed as code.
+describe() {
+  local pr=$1 number title commit head
+  number=$(jq -r .number <<<"$pr")
+  title=$(jq -r .title <<<"$pr")
+  commit=$(jq -r .merge_commit_sha <<<"$pr")
+  head=$(jq -r .head.ref <<<"$pr")
+  printf '#%s %s, merged as %s from %s\n' "$number" "$(code_span "$title")" \
+    "$commit" "$(code_span "$head")"
+}
+
+# pr_tag PR: print the tag that merging PR releases, from the manifest at its
+# merge commit.
+pr_tag() {
+  local pr=$1 commit version
+  commit=$(jq -r .merge_commit_sha <<<"$pr")
+  version=$(root_version "$commit")
+  printf 'v%s\n' "$version"
+}
+
+# merged_here: print the pending release pull request that SHA merged into
+# BASE; empty when there is none. The pull requests of the commit are read
+# directly, so that a lagging index of labelled issues cannot hide it.
+merged_here() {
+  local prs
+  prs=$(commit_pulls "$SHA")
+  jq -c --arg base "$BASE" --arg head "$RELEASE_HEAD" --arg sha "$SHA" \
+    --arg label "$PENDING_LABEL" '
+    def pending: any(.labels[]; .name == $label);
+    def release_pr: .base.ref == $base and .head.ref == $head;
+    def merged_here: .merged_at != null and .merge_commit_sha == $sha;
+    first(.[] | select(release_pr and pending and merged_here)) // empty' <<<"$prs"
+}
+
+# check_release: due when SHA merged a pending release pull request whose
+# release does not exist yet.
+check_release() {
+  local pr tag release
+  pr=$(merged_here)
+  [[ -n $pr ]] || return 0
+  tag=$(pr_tag "$pr")
+  release=$(published_release "$tag")
+  [[ -z $release ]] || return 0
+  decide release
+  summary "- release of $tag: this push merged $(describe "$pr")"
+}
+
+# in_window NUMBER WINDOW: release-please reads pull request NUMBER.
+in_window() {
+  local number=$1 window=$2
+  grep -qx -- "$number" <<<"$window"
+}
+
+# check_pending: check the merged release pull requests into BASE that are
+# still pending; WINDOW are those that release-please reads.
+check_pending() {
+  local prs window pr
+  prs=$(pending_release_prs "$BASE")
+  [[ -n $prs ]] || return 0
+  window=$(merged_window "$BASE")
+  while IFS= read -r pr; do
+    check_pending_pr "$pr" "$window"
+  done <<<"$prs"
+}
+
+# check_pending_pr PR WINDOW: check a pending pull request that SHA did not
+# merge. One that release-please would not release only gets a warning, so
+# that it does not ask for approval on every push.
+check_pending_pr() {
+  local pr=$1 window=$2 number commit head
+  number=$(jq -r .number <<<"$pr")
+  commit=$(jq -r .merge_commit_sha <<<"$pr")
+  head=$(jq -r .head.ref <<<"$pr")
+  [[ $commit != "$SHA" ]] || return 0
+  if [[ $head != "$RELEASE_HEAD" ]]; then
+    warning "#$number is labelled $PENDING_LABEL but is not from $RELEASE_HEAD; relabel it (README, Abandon)"
+  elif ! in_window "$number" "$window"; then
+    warning "#$number is pending but not among the $RELEASE_PLEASE_WINDOW merged pull requests that release-please reads; relabel it (README, Abandon)"
+  else
+    check_unreleased "$pr"
+  fi
+}
+
+# check_unreleased PR: check a pending release pull request whose release
+# does not exist yet.
+check_unreleased() {
+  local pr=$1 tag release commit run
+  tag=$(pr_tag "$pr")
+  release=$(published_release "$tag")
+  [[ -z $release ]] || return 0
+  commit=$(jq -r .merge_commit_sha <<<"$pr")
+  run=$(commit_run "$workflow" "$BASE" "$commit")
+  require_publishable "$pr" "$tag" "$run"
+  if [[ -z $run ]]; then
+    take_over "$pr" "$tag" "its merge commit has no run"
+  else
+    check_merge_run "$pr" "$tag" "$run"
+  fi
+}
+
+# require_publishable PR TAG RUN: fail when RUN, the run of the merge commit
+# of PR, or the merge itself when there is no run, is too old to be approved
+# or rerun. Taking over would release a commit whose run cannot publish it.
+require_publishable() {
+  local pr=$1 tag=$2 run=$3 since age number commit
+  if [[ -n $run ]]; then
+    since=$(jq -r .created_at <<<"$run")
+  else
+    since=$(jq -r .merged_at <<<"$pr")
+  fi
+  age=$(seconds_since "$since")
+  ((age > MAX_RUN_AGE_DAYS * SECONDS_PER_DAY)) || return 0
+  number=$(jq -r .number <<<"$pr")
+  commit=$(jq -r .merge_commit_sha <<<"$pr")
+  fail "the release of #$number at $commit can no longer be published from the run of its commit; abandon $tag (README, Abandon) and cut the next patch release"
+}
+
+# check_merge_run PR TAG RUN: due unless RUN, the run of the merge commit of
+# PR, has not completed yet (queued, in_progress, waiting, pending or
+# requested), so that it releases by itself, or its release was rejected.
+check_merge_run() {
+  local pr=$1 tag=$2 run=$3 id url status review
+  id=$(jq -r .id <<<"$run")
+  url=$(jq -r .html_url <<<"$run")
+  status=$(jq -r .status <<<"$run")
+  if [[ $status != completed ]]; then
+    summary "- not due: $url, the run of $(describe "$pr"), is $status and releases $tag"
+    return 0
+  fi
+  review=$(run_review "$id" "$ENVIRONMENT")
+  if [[ $review == rejected ]]; then
+    summary "- not due: the release of $tag was rejected in $url; rerun its failed jobs to approve it, or abandon it (README)"
+    return 0
+  fi
+  take_over "$pr" "$tag" "$url completed without releasing it"
+}
+
+# take_over PR TAG WHY: due to release TAG for PR, whose run did not.
+take_over() {
+  local pr=$1 tag=$2 why=$3
+  decide takeover
+  summary "- takeover of $tag: $why; $(describe "$pr")"
+}
+
+# check_repair: due when vX of the manifest's major must be created or moved
+# forward, unless the last approval request of an earlier run was rejected or
+# is still waiting. A rejected repair asks again after the next release.
+check_repair() {
+  local version major change latest earlier
+  version=$(root_version "$SHA")
+  check_release_version "$version"
+  major=${version%%.*}
+  change=$(major_tag_change "$major")
+  read -r change latest _ <<<"$change"
+  [[ $change == create || $change == move ]] || return 0
+  if [[ -n $ENVIRONMENT ]]; then
+    earlier=$(earlier_request)
+    if [[ $earlier == rejected* || $earlier == waiting* ]]; then
+      summary "- not due: repair of v$major at $latest, since the approval of ${earlier#* } is ${earlier%% *}"
+      return 0
+    fi
+  fi
+  decide repair
+  summary "- repair of v$major: $change it at $latest"
+}
+
+# earlier_request: print "STATE URL" of the newest of the last EARLIER_RUNS
+# push runs on BASE before this one that asked for approval of ENVIRONMENT;
+# STATE is waiting, approved or rejected. Empty when none of them asked.
+earlier_request() {
+  local runs run state url
+  runs=$(branch_runs "$workflow" "$BASE" "$EARLIER_RUNS")
+  runs=$(jq -c --arg started "$started" 'select(.created_at < $started)' <<<"$runs")
+  while IFS= read -r run; do
+    [[ -n $run ]] || continue
+    state=$(request_state "$run")
+    [[ -n $state ]] || continue
+    url=$(jq -r .html_url <<<"$run")
+    printf '%s %s\n' "$state" "$url"
+    return 0
+  done <<<"$runs"
+}
+
+# request_state RUN: print waiting, approved or rejected for a run that asked
+# for approval of ENVIRONMENT; empty when it has not asked.
+request_state() {
+  local run=$1 id status
+  id=$(jq -r .id <<<"$run")
+  status=$(jq -r .status <<<"$run")
+  if [[ $status == waiting ]]; then
+    echo waiting
+  elif [[ $status == completed ]]; then
+    run_review "$id" "$ENVIRONMENT"
+  fi
+}
+
+# write_decision: write the outputs and the end of the summary.
+write_decision() {
+  {
+    echo "due=$due"
+    echo "reason=$reason"
+  } >>"$GITHUB_OUTPUT"
+  summary ""
+  if [[ $due == true ]]; then
+    summary "Due: $reason."
+  else
+    summary "No release due."
+  fi
+}
+
+summary "Release plan of $SHA on $BASE. This is a hint, not evidence:" \
+  "before approving, check the repository (README, Approval)."
+summary ""
+if is_branch_creation; then
+  summary "- not due: the push created $BASE"
+  write_decision
+  exit 0
+fi
+this_run=$(workflow_run "$RUN_ID")
+# This run's workflow is the caller's.
+workflow=$(jq -r .workflow_id <<<"$this_run")
+started=$(jq -r .created_at <<<"$this_run")
+check_release
+if [[ $due == false ]]; then check_pending; fi
+if [[ $due == false && $MOVE_MAJOR_TAG == true ]]; then check_repair; fi
+write_decision

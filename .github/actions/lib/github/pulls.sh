@@ -17,3 +17,30 @@ pending_release_prs() {
     jq -c --arg base "$base" 'select(.base.ref == $base)' <<<"$pr"
   done
 }
+
+# release-please reads only this many merged pull requests of the target
+# branch, the most recently updated first.
+readonly RELEASE_PLEASE_WINDOW=200
+readonly PULLS_PER_PAGE=100
+
+# commit_pulls COMMIT: print the pull requests of a commit, a JSON array.
+commit_pulls() {
+  local commit=$1
+  api_get "repos/$REPO/commits/$commit/pulls"
+}
+
+# merged_window BASE: print the numbers of the merged pull requests into BASE
+# that release-please reads, one per line.
+merged_window() {
+  local base=$1 page=1 left=$RELEASE_PLEASE_WINDOW body merged taken size
+  while ((left > 0)); do
+    body=$(api_get "repos/$REPO/pulls?state=closed&base=$base&sort=updated&direction=desc&per_page=$PULLS_PER_PAGE&page=$page")
+    merged=$(jq -c --argjson left "$left" \
+      '[.[] | select(.merged_at != null) | .number][:$left]' <<<"$body")
+    jq -r '.[]' <<<"$merged"
+    taken=$(jq length <<<"$merged")
+    size=$(jq length <<<"$body")
+    ((size == PULLS_PER_PAGE)) || break
+    left=$((left - taken)) page=$((page + 1))
+  done
+}
