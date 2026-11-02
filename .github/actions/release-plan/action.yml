@@ -1,0 +1,40 @@
+name: Plan the release
+description: >-
+  Decides whether the job that releases with the key is due on this push: when
+  it merged a pending release pull request, when the run of an earlier one
+  failed or never ran, or when vX must be created or moved forward. Fails when
+  a pending release can no longer be published from the run of its commit.
+inputs:
+  token:
+    required: true
+  manifest-file:
+    required: true
+  environment:
+    description: Environment of the job that releases; empty when there is none.
+    default: ""
+  move-major-tag:
+    description: "'true' when the job that releases moves vX."
+    default: "false"
+outputs:
+  due:
+    description: "'true' when the job that releases is due."
+    value: ${{ steps.plan.outputs.due }}
+  reason:
+    description: release, takeover or repair when due; empty otherwise.
+    value: ${{ steps.plan.outputs.reason }}
+runs:
+  using: composite
+  steps:
+    - id: plan
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ github.repository }}
+        BASE: ${{ github.ref_name }}
+        SHA: ${{ github.sha }}
+        RUN_ID: ${{ github.run_id }}
+        NEW_BRANCH: ${{ github.event.created }}
+        MANIFEST: ${{ inputs.manifest-file }}
+        ENVIRONMENT: ${{ inputs.environment }}
+        MOVE_MAJOR_TAG: ${{ inputs.move-major-tag }}
+      run: '"$GITHUB_ACTION_PATH/run.sh"'
