@@ -264,8 +264,9 @@ are skipped.
   merged pull requests that release-please reads, are never due; `Plan` warns
   about them. The decision is no security boundary: a wrong one costs an
   approval request or delays a release until the next push, and `Release`
-  derives what it does from the repository. The job summary of `Plan` is a hint,
-  not evidence.
+  derives what it does from the repository. `Plan` writes its findings and its
+  decision to its job summary and as notices of the run, which the API can read;
+  they are a hint, not evidence.
 
 - **Unpublishable releases.** A job can wait for approval, and a run can be
   rerun, for 30 days. When the merge commit of a pending release pull request
@@ -396,17 +397,17 @@ helpers in `lib`: `lib/github/` calls the GitHub API (`api.sh`, `contents.sh`,
 `tags.sh`, `releases.sh`, `pulls.sh`, `runs.sh`), `lib/manifest.sh` reads the
 release-please manifest, `lib/app-key.sh` checks the App inputs,
 `lib/major-tag.sh` works out how `vX` has to change, `lib/clock.sh` measures
-ages and `lib/report.sh` reports errors and the job summary. `tests/run.sh`
-tests them with the stubs in `tests/bin`; the suites in `tests/unit` mirror the
-actions and share the helpers in `tests/lib`. `tests/unit/workflows/release.sh`
-checks the job graph: only `Release` and, with the App, `Release pull request`
-reach the environment and the key, `Release` runs only when it is due or there
-is no environment, and no job with an environment runs code of the repository.
-It reads the workflow with mikefarah `yq` v4, which GitHub-hosted runners have,
-and fails without it; locally, run `nix shell nixpkgs#yq-go -c tests/run.sh`.
-The repository releases itself through
-[`release-self.yaml`](.github/workflows/release-self.yaml). Before a pull
-request, run `tests/run.sh`, shellcheck, shfmt, actionlint and zizmor;
+ages and `lib/report.sh` reports errors, warnings, notices and the job summary.
+`tests/run.sh` tests them with the stubs in `tests/bin`; the suites in
+`tests/unit` mirror the actions and share the helpers in `tests/lib`.
+`tests/unit/workflows/release.sh` checks the job graph: only `Release` and, with
+the App, `Release pull request` reach the environment and the key, `Release`
+runs only when it is due or there is no environment, and no job with an
+environment runs code of the repository. It reads the workflow with mikefarah
+`yq` v4, which GitHub-hosted runners have, and fails without it; locally, run
+`nix shell nixpkgs#yq-go -c tests/run.sh`. The repository releases itself
+through [`release-self.yaml`](.github/workflows/release-self.yaml). Before a
+pull request, run `tests/run.sh`, shellcheck, shfmt, actionlint and zizmor;
 actionlint does not yet know the `$/` syntax and `queue: max` and reports them
 as errors. The design follows
 [FY-0007](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0007-branching-and-releases.md),

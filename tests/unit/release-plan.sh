@@ -116,6 +116,7 @@ earlier_runs() {
 plan_setup
 run "release-plan: nothing pending" ok "$script"
 expect_due false
+expect message "::notice::No release due."
 finish
 
 plan_setup
@@ -195,6 +196,8 @@ done
 takeover_setup
 run "release-plan: the merge run completed without a review" ok "$script"
 expect_due true takeover
+expect message "::notice::takeover of v1.3.0: https://x/runs/77 completed without releasing it;"
+expect message "::notice::Due: takeover."
 finish
 
 takeover_setup
@@ -216,6 +219,7 @@ takeover_setup
 reviews 77 release:rejected
 run "release-plan: the release was rejected" ok "$script"
 expect_due false
+expect message "::notice::not due: the release of v1.3.0 was rejected in https://x/runs/77"
 finish
 
 takeover_setup

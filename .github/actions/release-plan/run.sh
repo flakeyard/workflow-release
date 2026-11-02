@@ -49,6 +49,13 @@ decide() {
   due=true
 }
 
+# note TEXT: report a finding of the plan in the job summary and as a notice;
+# a job summary cannot be read through the API.
+note() {
+  summary "- $*"
+  notice "$*"
+}
+
 # is_branch_creation: the push created a branch, such as release/vN at a
 # release; nothing is pending on a new branch.
 is_branch_creation() {
@@ -100,7 +107,7 @@ check_release() {
   release=$(published_release "$tag")
   [[ -z $release ]] || return 0
   decide release
-  summary "- release of $tag: this push merged $(describe "$pr")"
+  note "release of $tag: this push merged $(describe "$pr")"
 }
 
 # in_window NUMBER WINDOW: release-please reads pull request NUMBER.
@@ -181,12 +188,12 @@ check_merge_run() {
   url=$(jq -r .html_url <<<"$run")
   status=$(jq -r .status <<<"$run")
   if [[ $status != completed ]]; then
-    summary "- not due: $url, the run of $(describe "$pr"), is $status and releases $tag"
+    note "not due: $url, the run of $(describe "$pr"), is $status and releases $tag"
     return 0
   fi
   review=$(run_review "$id" "$ENVIRONMENT")
   if [[ $review == rejected ]]; then
-    summary "- not due: the release of $tag was rejected in $url; rerun its failed jobs to approve it, or abandon it (README, Abandon)"
+    note "not due: the release of $tag was rejected in $url; rerun its failed jobs to approve it, or abandon it (README, Abandon)"
     return 0
   fi
   take_over "$pr" "$tag" "$url completed without releasing it"
@@ -196,7 +203,7 @@ check_merge_run() {
 take_over() {
   local pr=$1 tag=$2 why=$3
   decide takeover
-  summary "- takeover of $tag: $why; $(describe "$pr")"
+  note "takeover of $tag: $why; $(describe "$pr")"
 }
 
 # check_repair: due when vX of the manifest's major must be created or moved
@@ -213,12 +220,12 @@ check_repair() {
   if [[ -n $ENVIRONMENT ]]; then
     earlier=$(earlier_request)
     if [[ $earlier == rejected* || $earlier == waiting* ]]; then
-      summary "- not due: repair of v$major at $latest, since the approval of ${earlier#* } is ${earlier%% *}"
+      note "not due: repair of v$major at $latest, since the approval of ${earlier#* } is ${earlier%% *}"
       return 0
     fi
   fi
   decide repair
-  summary "- repair of v$major: $change it at $latest"
+  note "repair of v$major: $change it at $latest"
 }
 
 # earlier_request: print "STATE URL" of the newest of the last EARLIER_RUNS
@@ -257,19 +264,18 @@ write_decision() {
     echo "due=$due"
     echo "reason=$reason"
   } >>"$GITHUB_OUTPUT"
+  local decision="No release due."
+  if [[ $due == true ]]; then decision="Due: $reason."; fi
   summary ""
-  if [[ $due == true ]]; then
-    summary "Due: $reason."
-  else
-    summary "No release due."
-  fi
+  summary "$decision"
+  notice "$decision"
 }
 
 summary "Release plan of $SHA on $BASE. This is a hint, not evidence:" \
   "before approving, check the repository (README, Approval)."
 summary ""
 if is_branch_creation; then
-  summary "- not due: the push created $BASE"
+  note "not due: the push created $BASE"
   write_decision
   exit 0
 fi

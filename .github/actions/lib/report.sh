@@ -1,5 +1,6 @@
 # shellcheck shell=bash
-# Messages of a step: errors in the log and lines of the job summary.
+# Messages of a step: errors, warnings and notices in the log, and lines of
+# the job summary.
 
 # fail MESSAGE [FILE]: report an error, about FILE if given, and exit.
 fail() {
@@ -20,6 +21,11 @@ summary() {
 # warning MESSAGE: report a warning.
 warning() {
   echo "::warning::$*"
+}
+
+# notice MESSAGE: report a notice.
+notice() {
+  echo "::notice::$*"
 }
 
 # code_span TEXT: print TEXT as inline code of the job summary. Text that
