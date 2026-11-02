@@ -1,0 +1,23 @@
+# shellcheck shell=bash
+# Tests of token: the check of the App inputs.
+
+script=token/run.sh
+
+# token_case NAME EXPECTED [NAME=VALUE...]: check neither a client ID nor a
+# key, with the given overrides; message=TEXT is expected.
+token_case() {
+  local name=$1 expected=$2
+  shift 2
+  setup
+  export CLIENT_ID="" HAS_KEY=false
+  apply "$@"
+  run "token: $name" "$expected" "$script"
+  expect_param_message
+  finish
+}
+token_case "client ID and key" ok CLIENT_ID=Iv1 HAS_KEY=true
+token_case "no App" ok
+token_case "client ID without key" fail CLIENT_ID=Iv1 \
+  message="app-client-id is set but APP_PRIVATE_KEY is empty"
+token_case "key without client ID" fail HAS_KEY=true \
+  message="APP_PRIVATE_KEY is set but app-client-id is empty"
