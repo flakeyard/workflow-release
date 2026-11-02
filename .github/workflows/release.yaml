@@ -1,6 +1,8 @@
 # Reusable release workflow: releases with release-please, keeps the latest
 # release and the moving major tag in sync, and maintains the release pull
-# request. Each step's logic lives in .github/actions.
+# request. Only the job that releases uses the environment, and with one it
+# runs only when a job without the key has found it due. Each step's logic
+# lives in .github/actions.
 name: release
 
 on:
@@ -11,17 +13,27 @@ on:
         type: string
         default: ""
       environment:
-        description: Environment that holds the secret APP_PRIVATE_KEY.
+        description: >-
+          Environment that holds the secret APP_PRIVATE_KEY. The job that
+          releases uses it and then runs only when a release or a repair of vX
+          is due.
         type: string
         default: ""
+      app-pull-requests:
+        description: >-
+          Open the release pull request with the App, in the environment. false
+          opens it with GITHUB_TOKEN, without the environment, and starts
+          check-workflow on it.
+        type: boolean
+        default: true
       move-major-tag:
         description: Keep the tag vX at the latest release vX.Y.Z.
         type: boolean
         default: false
       check-workflow:
         description: >-
-          Check workflow to start on the release pull request when no App is
-          used, such as check.yaml.
+          Check workflow to start on the release pull request when it is
+          opened with GITHUB_TOKEN, such as check.yaml.
         type: string
         default: ""
       config-file:
@@ -39,37 +51,84 @@ on:
     outputs:
       released:
         description: "'true' when this run's commit is a published release."
-        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['released'] }}
+        value: ${{ fromJSON(jobs.state.outputs.state || '{}')['released'] }}
       tag:
         description: Release tag, such as v1.2.3.
-        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['tag'] }}
+        value: ${{ fromJSON(jobs.state.outputs.state || '{}')['tag'] }}
       version:
         description: Released version, such as 1.2.3.
-        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['version'] }}
+        value: ${{ fromJSON(jobs.state.outputs.state || '{}')['version'] }}
       major:
         description: Major version of the release.
-        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['major'] }}
+        value: ${{ fromJSON(jobs.state.outputs.state || '{}')['major'] }}
       minor:
         description: Minor version of the release.
-        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['minor'] }}
+        value: ${{ fromJSON(jobs.state.outputs.state || '{}')['minor'] }}
       patch:
         description: Patch version of the release.
-        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['patch'] }}
+        value: ${{ fromJSON(jobs.state.outputs.state || '{}')['patch'] }}
       prerelease:
         description: "'true' when the release is a pre-release (0.y.z)."
-        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['prerelease'] }}
+        value: ${{ fromJSON(jobs.state.outputs.state || '{}')['prerelease'] }}
       sha:
         description: Commit of the release; build published artifacts from it.
-        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['sha'] }}
+        value: ${{ fromJSON(jobs.state.outputs.state || '{}')['sha'] }}
       release-url:
         description: URL of the GitHub release.
-        value: ${{ fromJSON(jobs.release.outputs.state || '{}')['release-url'] }}
+        value: ${{ fromJSON(jobs.state.outputs.state || '{}')['release-url'] }}
 
 permissions: {}
 
 jobs:
+  # Decides without the key and without the environment whether the job that
+  # releases is due. It is no security boundary: every path to the key passes
+  # the environment's protection rules.
+  plan:
+    name: Plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read # runs and approvals of the merge commit
+      contents: read # the manifest, tags and releases
+      issues: write # relabel pending release pull requests
+      pull-requests: read # merged release pull requests
+    outputs:
+      checked: ${{ steps.preflight.outcome == 'success' }}
+      due: ${{ steps.plan.outputs.due }}
+    steps:
+      - id: preflight
+        uses: $/.github/actions/preflight
+        with:
+          app-client-id: ${{ inputs.app-client-id }}
+          has-key: ${{ secrets.APP_PRIVATE_KEY != '' }}
+          # A secret of the environment is not visible in this job.
+          key-visible: ${{ inputs.environment == '' }}
+          config-file: ${{ inputs.config-file }}
+          manifest-file: ${{ inputs.manifest-file }}
+
+      - uses: $/.github/actions/reconcile-pending-prs
+        with:
+          token: ${{ github.token }}
+          manifest-file: ${{ inputs.manifest-file }}
+
+      - id: plan
+        uses: $/.github/actions/release-plan
+        with:
+          token: ${{ github.token }}
+          manifest-file: ${{ inputs.manifest-file }}
+          environment: ${{ inputs.environment }}
+          move-major-tag: ${{ inputs.move-major-tag }}
+
+  # The only job that uses the key to release and move tags v*. Without an
+  # environment it runs on every push, since there is no approval to save. It
+  # derives what it does from the repository, never from the plan, and runs
+  # no code of the repository.
   release:
     name: Release
+    needs: plan
+    if: >-
+      ${{ !cancelled() && needs.plan.outputs.checked == 'true'
+      && (inputs.environment == '' || needs.plan.outputs.due == 'true') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: ${{ inputs.environment }}
@@ -82,36 +141,25 @@ jobs:
       issues: write # release-please labels
       pull-requests: write # release-please comments on the merged pull request
     outputs:
-      checked: ${{ steps.preflight.outcome == 'success' }}
-      state: ${{ steps.state.outputs.state }}
-      elsewhere-tag: ${{ steps.state.outputs.elsewhere-tag }}
-      elsewhere-sha: ${{ steps.state.outputs.elsewhere-sha }}
-      elsewhere-created: ${{ steps.state.outputs.elsewhere-created }}
+      created: ${{ steps.rp.outputs.release_created }}
+      created-tag: ${{ steps.rp.outputs.tag_name }}
+      rp-failed: ${{ steps.rp.outcome == 'failure' }}
     steps:
-      - id: preflight
-        uses: $/.github/actions/preflight
-        with:
-          app-client-id: ${{ inputs.app-client-id }}
-          has-key: ${{ secrets.APP_PRIVATE_KEY != '' }}
-          config-file: ${{ inputs.config-file }}
-          manifest-file: ${{ inputs.manifest-file }}
-
       - id: token
         uses: $/.github/actions/token
         with:
           app-client-id: ${{ inputs.app-client-id }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      # Again: another run may have released between the plan and the
+      # approval.
       - uses: $/.github/actions/reconcile-pending-prs
         with:
           token: ${{ steps.token.outputs.token }}
           manifest-file: ${{ inputs.manifest-file }}
 
-      # release-please can fail after creating a release: the steps after it
-      # derive everything from the repository, and the job fails at the end.
       - id: rp
         name: Create releases
-        continue-on-error: true
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ steps.token.outputs.token }}
@@ -120,38 +168,68 @@ jobs:
           target-branch: ${{ github.ref_name }}
           skip-github-pull-request: true
 
-      - id: state
-        uses: $/.github/actions/release-state
-        with:
-          token: ${{ steps.token.outputs.token }}
-          manifest-file: ${{ inputs.manifest-file }}
-          created: ${{ steps.rp.outputs.release_created }}
-          created-tag: ${{ steps.rp.outputs.tag_name }}
-          release-failed: ${{ steps.rp.outcome == 'failure' }}
-
-      - if: startsWith(github.ref, 'refs/heads/release/')
-        uses: $/.github/actions/keep-latest
-        with:
-          token: ${{ steps.token.outputs.token }}
-
-      - if: inputs.move-major-tag
+      # release-please can fail after creating a release; the tag is synced
+      # from the repository's releases anyway, and the job still fails.
+      - if: ${{ !cancelled() && inputs.move-major-tag && steps.token.outcome == 'success' }}
         uses: $/.github/actions/sync-major-tag
         with:
           token: ${{ steps.token.outputs.token }}
           manifest-file: ${{ inputs.manifest-file }}
 
-      - name: Fail if release-please failed
-        if: steps.rp.outcome == 'failure'
-        run: |
-          echo "::error::release-please failed; outputs and tags were synced. Rerun to retry."
-          exit 1
+  state:
+    name: Release state
+    needs: [plan, release]
+    if: ${{ !cancelled() && needs.plan.outputs.checked == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read # the manifest, tags and releases
+    outputs:
+      state: ${{ steps.state.outputs.state }}
+      elsewhere-tag: ${{ steps.state.outputs.elsewhere-tag }}
+      elsewhere-sha: ${{ steps.state.outputs.elsewhere-sha }}
+      elsewhere-created: ${{ steps.state.outputs.elsewhere-created }}
+    steps:
+      # A job that failed inside release-please has no outputs; it may still
+      # have released an older commit.
+      - id: state
+        uses: $/.github/actions/release-state
+        with:
+          token: ${{ github.token }}
+          manifest-file: ${{ inputs.manifest-file }}
+          created: ${{ needs.release.outputs.created }}
+          created-tag: ${{ needs.release.outputs.created-tag }}
+          release-failed: >-
+            ${{ needs.release.outputs.rp-failed == 'true'
+            || (needs.release.result == 'failure'
+            && needs.release.outputs.created != 'true') }}
+
+  # Marking a release as latest needs neither the key nor the environment.
+  latest:
+    name: Keep the latest release
+    needs: [plan, release]
+    if: >-
+      ${{ !cancelled() && needs.plan.outputs.checked == 'true'
+      && startsWith(github.ref, 'refs/heads/release/') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    concurrency:
+      group: flakeyard-release-latest-${{ github.repository }}
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: write # mark the newest release as latest
+    steps:
+      - uses: $/.github/actions/keep-latest
+        with:
+          token: ${{ github.token }}
 
   # A run that waited in the queue can release an older commit. The run of
   # that commit publishes it, so that attestations name the release commit.
   rerun-release-commit:
     name: Publish at the release commit
-    needs: release
-    if: ${{ !cancelled() && needs.release.outputs.elsewhere-tag != '' }}
+    needs: state
+    if: ${{ !cancelled() && needs.state.outputs.elsewhere-tag != '' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -160,20 +238,20 @@ jobs:
     steps:
       - uses: $/.github/actions/rerun-release-commit
         with:
-          tag: ${{ needs.release.outputs.elsewhere-tag }}
-          sha: ${{ needs.release.outputs.elsewhere-sha }}
-          created: ${{ needs.release.outputs.elsewhere-created }}
+          tag: ${{ needs.state.outputs.elsewhere-tag }}
+          sha: ${{ needs.state.outputs.elsewhere-sha }}
+          created: ${{ needs.state.outputs.elsewhere-created }}
 
+  # Waits for the release job only to see a new tag. With app-pull-requests,
+  # the App's key is needed: the job uses the environment but deploys nothing.
   pull-request:
     name: Release pull request
-    needs: release
-    if: ${{ !cancelled() && needs.release.outputs.checked == 'true' }}
+    needs: [plan, release]
+    if: ${{ !cancelled() && needs.plan.outputs.checked == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    # The key is needed, but this job deploys nothing; the branch policy of
-    # the environment still applies.
     environment:
-      name: ${{ inputs.environment }}
+      name: ${{ inputs.app-pull-requests && inputs.environment || '' }}
       deployment: false
     concurrency:
       group: flakeyard-release-pr-${{ github.repository }}-${{ github.ref }}
@@ -187,8 +265,8 @@ jobs:
       - id: token
         uses: $/.github/actions/token
         with:
-          app-client-id: ${{ inputs.app-client-id }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          app-client-id: ${{ inputs.app-pull-requests && inputs.app-client-id || '' }}
+          private-key: ${{ inputs.app-pull-requests && secrets.APP_PRIVATE_KEY || '' }}
 
       - uses: $/.github/actions/release-pr
         with:
@@ -198,10 +276,11 @@ jobs:
 
   dispatch-checks:
     name: Start checks
-    needs: [release, pull-request]
+    needs: [plan, pull-request]
     if: >-
-      ${{ !cancelled() && needs.release.outputs.checked == 'true'
-      && inputs.app-client-id == '' && inputs.check-workflow != '' }}
+      ${{ !cancelled() && needs.plan.outputs.checked == 'true'
+      && inputs.check-workflow != ''
+      && (inputs.app-client-id == '' || !inputs.app-pull-requests) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

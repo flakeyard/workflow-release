@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Unit tests of the scripts in .github/actions, with a stub of gh. The suites
-# in tests/unit mirror the actions: one file per action, or a directory with
-# one file per script when an action has several.
+# Unit tests of the scripts in .github/actions, with a stub of gh, and static
+# tests of the workflows. The suites in tests/unit mirror the actions: one file
+# per action, or a directory with one file per script when an action has
+# several; tests/unit/workflows has one file per workflow and needs yq.
 # Usage: tests/run.sh
 # shellcheck source-path=SCRIPTDIR
 set -uo pipefail

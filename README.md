@@ -6,7 +6,9 @@ release pull request up to date, creates the tag `vX.Y.Z` and its GitHub release
 when that pull request is merged, and optionally keeps a moving tag `vX` at the
 latest release of each major version.
 
-It works with a GitHub App of your own or with `GITHUB_TOKEN` alone.
+It works with a GitHub App of your own or with `GITHUB_TOKEN` alone. With an
+environment that requires approval, only the job that releases waits for it, and
+only when a release is due.
 
 ## Usage
 
@@ -104,7 +106,45 @@ Before the first run:
 3. Store the App's client ID, here in the variable `RELEASE_APP_CLIENT_ID`.
 4. If a ruleset restricts tags `v*`, allow the App to bypass it.
 
-The workflow fails when only one of the client ID and the key is given.
+The workflow fails when only one of the client ID and the key is given: every
+job that uses the key fails before using it, and the first job fails too when
+`environment` is empty. A secret of the environment is visible only to the jobs
+of that environment, so a missing one shows up only in a run that uses it; check
+it whenever you change the environment.
+
+### With a required reviewer
+
+A job that uses an environment with required reviewers waits for approval. The
+job that releases then runs only when a release or a repair of `vX` is due (see
+[Behaviour](#behaviour)), so ordinary merges do not wait. With the default
+`app-pull-requests: true`, the release pull request is also updated with the App
+in the environment, and every push asks for that approval as well. To avoid
+that, in this order:
+
+1. Allow GitHub Actions to create pull requests in the repository (**Settings →
+   Actions → General → Workflow permissions**); in an organization, it must be
+   allowed there first.
+2. Set `app-pull-requests: false`, and `check-workflow` if the repository has a
+   check workflow (see [Without a GitHub App](#without-a-github-app) for what it
+   must do).
+3. Add the reviewer to the environment, and check that `APP_PRIVATE_KEY` is set
+   in it.
+
+With step 2 before step 1, the next creation of a release pull request fails; an
+update of an existing one still works, which hides the failure until the next
+release.
+
+GitHub has one setting for creating and approving pull requests. With it on, any
+job with `pull-requests: write` can approve a pull request as
+`github-actions[bot]`, and a workflow can ask for that permission in its own
+file, whatever the default permissions are. Anyone who can push a workflow,
+including an app with write access, can then add an approval. While rulesets
+require no approvals, that gives nothing beyond write access; once they do, turn
+the setting off and open release pull requests with an App again, from an
+environment without reviewers.
+
+Release pull requests opened with `GITHUB_TOKEN` get their checks only through
+`check-workflow` and are authored by `github-actions[bot]`.
 
 ### Without a GitHub App
 
@@ -132,12 +172,19 @@ Leave `app-client-id` empty and omit the secret. Then:
 
 - `app-client-id` (default `""`): client ID of a GitHub App to act as. Empty
   uses `GITHUB_TOKEN`.
-- `environment` (default `""`): environment that holds `APP_PRIVATE_KEY`. Empty
-  means none.
+- `environment` (default `""`): environment that holds `APP_PRIVATE_KEY`, used
+  by the job that releases and, with `app-pull-requests`, by the job that
+  updates the release pull request. With an environment, the job that releases
+  runs only when a release is due. Empty means none.
+- `app-pull-requests` (default `true`): update the release pull request with the
+  App, in `environment`. `false` updates it with `GITHUB_TOKEN`, without the
+  environment, and starts `check-workflow` on it. Without an App, it changes
+  nothing.
 - `move-major-tag` (default `false`): keep `vX` at the newest published
   `vX.Y.Z`, and `v0` at the newest `0.y.z`.
 - `check-workflow` (default `""`): check workflow to start on the release pull
-  request when no App is used.
+  request when it is updated with `GITHUB_TOKEN`: without an App, or with
+  `app-pull-requests: false`.
 - `config-file` (default `release-please-config.json`): release-please
   configuration.
 - `manifest-file` (default `.release-please-manifest.json`): release-please
@@ -169,27 +216,60 @@ The calling job must grant `contents: write`, `issues: write`,
 checks the permissions of every job of a called workflow, including jobs that
 are skipped.
 
-- With an App, its token does the work and is limited to the current repository
-  and to contents, issues and pull requests; `GITHUB_TOKEN` is used for no
-  writes but reruns.
+- `Plan` uses `GITHUB_TOKEN` to read workflow runs and their approvals
+  (`actions`) and to relabel release pull requests left pending (`issues`).
+- With an App, its token creates releases and moves `vX`, and with
+  `app-pull-requests` updates the release pull request. It is limited to the
+  current repository and to contents, issues and pull requests.
 - Without an App, `GITHUB_TOKEN` uses `contents`, `issues` and `pull-requests`
-  for releases and the release pull request, and `actions` to start
-  `check-workflow`.
-- On both paths, `GITHUB_TOKEN` uses `actions` to rerun the run of a release
-  commit that another run released.
+  for releases. Without an App or with `app-pull-requests: false`, it uses them
+  for the release pull request, and `actions` to start `check-workflow`.
+- On every path, `GITHUB_TOKEN` uses `contents` to keep the newest release
+  latest on `release/vN`, and `actions` to rerun the run of a release commit
+  that another run released.
 
 ## Behaviour
 
 - **Branches.** Runs only on the default branch and on `release/vN`. On
   `release/vN`, release-please works on that branch, and the newest release of
   the repository stays marked as latest.
-- **Jobs.** `Release` creates releases, `Publish at the release commit` reruns
-  the run of a release commit that this run released, `Release pull request`
-  updates the release pull request, and `Start checks` starts `check-workflow`
-  without an App. A failure of a later job does not affect the outputs of
-  `Release`. The pull request update is retried once after 30 seconds.
-  `Release pull request` uses the environment for the key but creates no
-  deployment.
+- **Jobs.** `Plan` checks the run and decides, without the key and without the
+  environment, whether a release is due. `Release` creates releases and moves
+  `vX`; it is the only job that uses the key, except `Release pull request` with
+  `app-pull-requests`, and it runs no code of the repository. `Release state`
+  derives the outputs from the repository. `Keep the latest release` keeps the
+  newest release marked as latest, on `release/vN`.
+  `Publish at the release commit` reruns the run of a release commit that this
+  run released. `Release pull request` updates the release pull request after
+  `Release`, so that it sees a new tag, and `Start checks` starts
+  `check-workflow` when that pull request is updated with `GITHUB_TOKEN`. A
+  failure of a later job does not affect the outputs. The pull request update is
+  retried once after 30 seconds. With the App, `Release pull request` uses the
+  environment for the key but creates no deployment.
+- **Due releases.** Without an environment, `Release` runs on every push. With
+  one, it runs only when `Plan` finds a reason:
+  - release: the push merged a release pull request of release-please, from
+    `release-please--branches--<branch>`, still labelled `autorelease: pending`;
+  - takeover: such a pull request was merged earlier, its release does not
+    exist, and the newest push run of its merge commit completed without a
+    rejection, or there is none; this run releases it, and the rerun of that run
+    publishes it;
+  - repair: `move-major-tag` is on, and `vX` must be created or moved forward.
+
+  A pending pull request whose run is still queued, running or waiting releases
+  itself. One whose release was rejected is not due again (see
+  [Approval](#approval)), and a rejected repair asks again only after the next
+  release. Pending pull requests from another branch, or older than the 200
+  merged pull requests that release-please reads, are never due; `Plan` warns
+  about them. The decision is no security boundary: a wrong one costs an
+  approval request or delays a release until the next push, and `Release`
+  derives what it does from the repository. The job summary of `Plan` is a hint,
+  not evidence.
+
+- **Age.** A job can wait for approval, and a run can be rerun, for 30 days.
+  When the run of a pending merge commit, or the merge without a run, is older
+  than 29 days, `Plan` fails and asks to abandon that version and cut the next
+  patch release, since the run of its commit can no longer publish it.
 - **Reruns.** The outputs are derived from the manifest and the release tag, not
   only from release-please's own outputs, and the latest release and the moving
   tag are synced from the repository's releases. If release-please fails after
@@ -203,19 +283,72 @@ are skipped.
   the commit of their run as the source. When a run releases an older commit, or
   may have done so before release-please failed, `Publish at the release commit`
   waits up to 10 minutes for the newest push run of that commit on the branch to
-  complete and reruns all its jobs; that run then reports the release. It fails
-  with what to do by hand when there is no such run, when the run is still
-  running after the wait, or when GitHub refuses the rerun, such as for runs
-  older than 30 days. Creating a branch, such as `release/vN` at a release, is
-  never reported as a release.
+  complete and reruns all its jobs; that run then reports the release, without
+  asking for approval, since nothing is due. It fails with what to do when there
+  is no such run, when the run is still running after the wait, or when GitHub
+  refuses the rerun, such as for runs older than 30 days: rerun it, or abandon
+  that version and cut the next patch release. Creating a branch, such as
+  `release/vN` at a release, is never reported as a release.
 - **Moving tag.** `vX` is created or moved to the newest published,
   non-prerelease `vX.Y.Z` of the major version on the branch, only forward. `v0`
   follows the releases `0.y.z`, which are all pre-releases and carry no
   compatibility guarantee.
 - **Concurrency.** Release jobs of one repository run one at a time and queue
-  instead of being cancelled. A run that waited in the queue behind a failed run
-  can create the release of that run's commit; the rerun of that run publishes
-  it.
+  instead of being cancelled; so do the jobs that keep the latest release, and
+  the release pull request jobs of one branch. `Plan` is in no group, so a
+  release that waits for approval does not keep other pushes from planning. A
+  run that waited in the queue behind a failed run can create the release of
+  that run's commit; the rerun of that run publishes it.
+
+## Approval
+
+With a required reviewer on the environment, the approval is the only defence
+against anyone who can merge, such as a compromised app with write access. Check
+the repository, not the output of the run: a modified caller workflow can write
+any summary. Before approving a run at commit `SHA`:
+
+1. The run is a `push` run of the release workflow on the default branch or
+   `release/vN`, at `SHA`: check the run page, not its summary.
+2. `SHA` merges a release pull request that you merged. For a takeover, the
+   pending pull request is one that you merged, and its own run failed rather
+   than being rejected.
+3. The release pull request changes only the manifest, `CHANGELOG.md` and the
+   version files of the configuration.
+4. `git log --format='%h %G? %an %s' vPREV..SHA` lists only signed squash
+   commits of pull requests that you reviewed.
+5. `git diff vPREV..SHA -- .github/` is empty or has only changes that you
+   reviewed.
+6. The caller at `SHA` references `flakeyard/workflow-release` at the commit of
+   one of its release tags
+   (`gh api repos/flakeyard/workflow-release/commits/vX.Y.Z --jq .sha`), not at
+   a commit of another branch or of a fork.
+
+Approve in **Review deployments** of the run, or with the API:
+
+```sh
+gh api -X POST repos/OWNER/REPO/actions/runs/RUN_ID/pending_deployments \
+  -F 'environment_ids[]=ENVIRONMENT_ID' -f state=approved -f comment='checked'
+```
+
+Approve or reject within days: GitHub fails a job that waits for 30 days. After
+a rejection, `Release` fails, `released` is `false` and the run is red. The
+release pull request stays labelled `autorelease: pending`, so release-please
+opens no new release pull request, and later pushes do not ask again. Then
+either:
+
+- **Approve later.** **Re-run failed jobs** of that run: `Release` asks for
+  approval again and releases the commit of that run. This works for 30 days
+  after the run was created.
+- **Abandon.** Remove the label `autorelease: pending` from the merged release
+  pull request and add `autorelease: abandoned`, which is only for readers. The
+  version is skipped: its tag is never created, its section of `CHANGELOG.md`
+  stays without a tag, and the next push opens a release pull request for the
+  next version, which lists the changes since the previous tag again.
+
+When `Plan` reports a pending release as too old, abandon it in the same way and
+cut the next patch release, for example by merging a `fix:` commit. When a
+release exists but the run of its commit can no longer publish it, its artifacts
+are never published; cut the next patch release.
 
 ## Requirements
 
@@ -233,8 +366,7 @@ referenced with `$/`:
 - `preflight`: the event, the release branch, the App inputs and a supported
   release-please configuration, checked with `GITHUB_TOKEN` before anything is
   written;
-- `release-plan`: whether the job that releases is due on a push, not used by
-  the workflow yet;
+- `release-plan`: whether the job that releases is due on a push;
 - `token`: the App token or `GITHUB_TOKEN`, after checking that the client ID
   and the key come together;
 - `reconcile-pending-prs`: release pull requests left pending by a failed run;
@@ -243,7 +375,8 @@ referenced with `$/`:
 - `keep-latest`: the newest release stays latest;
 - `sync-major-tag`: the moving tag `vX`;
 - `release-pr`: the release pull request, with one retry;
-- `dispatch-checks`: checks of the release pull request without an App.
+- `dispatch-checks`: checks of the release pull request when `GITHUB_TOKEN`
+  updates it.
 
 Each action runs its `run.sh`, or one script per check when it has several
 (`preflight/inputs.sh` and `preflight/config.sh`). The scripts source the
@@ -253,15 +386,21 @@ release-please manifest, `lib/app-key.sh` checks the App inputs,
 `lib/major-tag.sh` works out how `vX` has to change, `lib/clock.sh` measures
 ages and `lib/report.sh` reports errors and the job summary. `tests/run.sh`
 tests them with the stubs in `tests/bin`; the suites in `tests/unit` mirror the
-actions and share the helpers in `tests/lib`. The repository releases itself
-through [`release-self.yaml`](.github/workflows/release-self.yaml). Before a
-pull request, run `tests/run.sh`, shellcheck, shfmt, actionlint and zizmor;
+actions and share the helpers in `tests/lib`. `tests/unit/workflows/release.sh`
+checks the job graph: only `Release` and, with the App, `Release pull request`
+reach the environment and the key, `Release` runs only when it is due or there
+is no environment, and no job with an environment runs code of the repository.
+It reads the workflow with mikefarah `yq` v4, which GitHub-hosted runners have,
+and fails without it; locally, run `nix shell nixpkgs#yq-go -c tests/run.sh`.
+The repository releases itself through
+[`release-self.yaml`](.github/workflows/release-self.yaml). Before a pull
+request, run `tests/run.sh`, shellcheck, shfmt, actionlint and zizmor;
 actionlint does not yet know the `$/` syntax and `queue: max` and reports them
 as errors. The design follows
 [FY-0007](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0007-branching-and-releases.md),
-[FY-0021](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0021-release-bot.md)
+[FY-0028](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0028-supply-chain.md)
 and
-[FY-0020](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0020-actions-and-workflows.md).
+[FY-0030](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0030-actions-workflows-and-release-bot.md).
 
 ## Bootstrap
 
