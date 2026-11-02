@@ -245,12 +245,13 @@ referenced with `$/`:
 Each action runs its `run.sh`, or one script per check when it has several
 (`preflight/inputs.sh` and `preflight/config.sh`). The scripts source the
 helpers in `lib`: `lib/github/` calls the GitHub API (`api.sh`, `contents.sh`,
-`tags.sh`, `releases.sh`), `lib/manifest.sh` reads the release-please manifest
-and `lib/report.sh` reports errors and the job summary. `tests/run.sh` tests
-them with the stubs in `tests/bin`; the suites in `tests/unit` mirror the
-actions and share the helpers in `tests/lib`. The repository releases itself
-through [`release-self.yaml`](.github/workflows/release-self.yaml). Before a
-pull request, run `tests/run.sh`, shellcheck, shfmt, actionlint and zizmor;
+`tags.sh`, `releases.sh`, `pulls.sh`, `runs.sh`), `lib/manifest.sh` reads the
+release-please manifest, `lib/major-tag.sh` works out how `vX` has to change and
+`lib/report.sh` reports errors and the job summary. `tests/run.sh` tests them
+with the stubs in `tests/bin`; the suites in `tests/unit` mirror the actions and
+share the helpers in `tests/lib`. The repository releases itself through
+[`release-self.yaml`](.github/workflows/release-self.yaml). Before a pull
+request, run `tests/run.sh`, shellcheck, shfmt, actionlint and zizmor;
 actionlint does not yet know the `$/` syntax and `queue: max` and reports them
 as errors. The design follows
 [FY-0007](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0007-branching-and-releases.md),
