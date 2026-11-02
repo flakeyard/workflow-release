@@ -3,9 +3,11 @@
 # SHA to BASE, and writes due and reason to GITHUB_OUTPUT:
 # - release: SHA merged a release pull request that is still pending;
 # - takeover: an earlier one is pending, and the run of its merge commit
-#   failed or never ran;
+#   completed without releasing it;
 # - repair: MOVE_MAJOR_TAG is true and vX must be created or moved forward.
-# A release or repair whose approval was rejected is not due again. The
+# A release or repair whose approval was rejected is not due again. A pending
+# release whose merge commit has no push run, or one too old to be rerun,
+# fails the plan: the run of its commit could never publish it. The
 # decision only saves approvals and is no security boundary: the job that
 # releases derives what it does from the repository.
 # shellcheck source-path=SCRIPTDIR
@@ -129,9 +131,9 @@ check_pending_pr() {
   head=$(jq -r .head.ref <<<"$pr")
   [[ $commit != "$SHA" ]] || return 0
   if [[ $head != "$RELEASE_HEAD" ]]; then
-    warning "#$number is labelled $PENDING_LABEL but is not from $RELEASE_HEAD; relabel it (README, Abandon)"
+    warning "#$number is labelled $PENDING_LABEL but is not from $RELEASE_HEAD, so it releases nothing; remove the label"
   elif ! in_window "$number" "$window"; then
-    warning "#$number is pending but not among the $RELEASE_PLEASE_WINDOW merged pull requests that release-please reads; relabel it (README, Abandon)"
+    warning "#$number is pending but not among the $RELEASE_PLEASE_WINDOW merged pull requests that release-please reads, so it releases nothing; relabel it autorelease: abandoned"
   else
     check_unreleased "$pr"
   fi
@@ -140,35 +142,34 @@ check_pending_pr() {
 # check_unreleased PR: check a pending release pull request whose release
 # does not exist yet.
 check_unreleased() {
-  local pr=$1 tag release commit run
+  local pr=$1 tag release commit run age
   tag=$(pr_tag "$pr")
   release=$(published_release "$tag")
   [[ -z $release ]] || return 0
   commit=$(jq -r .merge_commit_sha <<<"$pr")
   run=$(commit_run "$workflow" "$BASE" "$commit")
-  require_publishable "$pr" "$tag" "$run"
-  if [[ -z $run ]]; then
-    take_over "$pr" "$tag" "its merge commit has no run"
-  else
-    check_merge_run "$pr" "$tag" "$run"
-  fi
+  [[ -n $run ]] || unpublishable "$pr" "$tag" "its merge commit has no push run of this workflow"
+  age=$(run_age "$run")
+  ((age <= MAX_RUN_AGE_DAYS * SECONDS_PER_DAY)) \
+    || unpublishable "$pr" "$tag" "the run of its merge commit is too old to be approved or rerun"
+  check_merge_run "$pr" "$tag" "$run"
 }
 
-# require_publishable PR TAG RUN: fail when RUN, the run of the merge commit
-# of PR, or the merge itself when there is no run, is too old to be approved
-# or rerun. Taking over would release a commit whose run cannot publish it.
-require_publishable() {
-  local pr=$1 tag=$2 run=$3 since age number commit
-  if [[ -n $run ]]; then
-    since=$(jq -r .created_at <<<"$run")
-  else
-    since=$(jq -r .merged_at <<<"$pr")
-  fi
-  age=$(seconds_since "$since")
-  ((age > MAX_RUN_AGE_DAYS * SECONDS_PER_DAY)) || return 0
+# run_age RUN: print the seconds since RUN was created.
+run_age() {
+  local run=$1 created
+  created=$(jq -r .created_at <<<"$run")
+  seconds_since "$created"
+}
+
+# unpublishable PR TAG WHY: fail, since the release of PR can never be
+# published from the run of its commit. Taking over would release a commit
+# whose run cannot publish it.
+unpublishable() {
+  local pr=$1 tag=$2 why=$3 number commit
   number=$(jq -r .number <<<"$pr")
   commit=$(jq -r .merge_commit_sha <<<"$pr")
-  fail "the release of #$number at $commit can no longer be published from the run of its commit; abandon $tag (README, Abandon) and cut the next patch release"
+  fail "the release of #$number at $commit can never be published from the run of its commit: $why; abandon $tag (README, Abandon)"
 }
 
 # check_merge_run PR TAG RUN: due unless RUN, the run of the merge commit of
@@ -185,7 +186,7 @@ check_merge_run() {
   fi
   review=$(run_review "$id" "$ENVIRONMENT")
   if [[ $review == rejected ]]; then
-    summary "- not due: the release of $tag was rejected in $url; rerun its failed jobs to approve it, or abandon it (README)"
+    summary "- not due: the release of $tag was rejected in $url; rerun its failed jobs to approve it, or abandon it (README, Abandon)"
     return 0
   fi
   take_over "$pr" "$tag" "$url completed without releasing it"
