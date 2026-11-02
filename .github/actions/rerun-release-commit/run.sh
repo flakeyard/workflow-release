@@ -13,17 +13,13 @@ lib=$(dirname "$0")/../lib
 source "$lib/github/api.sh"
 # shellcheck source=../lib/github/releases.sh
 source "$lib/github/releases.sh"
+# shellcheck source=../lib/github/runs.sh
+source "$lib/github/runs.sh"
 # shellcheck source=../lib/report.sh
 source "$lib/report.sh"
 
 # A run of the release commit that is still running is waited for this long.
 readonly WAIT_ATTEMPTS=40 WAIT_SECONDS=15
-
-# run_path ID: print the API path of a workflow run.
-run_path() {
-  local id=$1
-  printf '%s\n' "repos/$REPO/actions/runs/$id"
-}
 
 # this_run_started: print when the first attempt of this run started.
 this_run_started() {
@@ -51,19 +47,6 @@ require_created_by_this_run() {
   fi
 }
 
-# workflow_id: print the id of this run's workflow, the caller's.
-workflow_id() {
-  api_get "$(run_path "$RUN_ID")" | jq -r .workflow_id
-}
-
-# commit_run WORKFLOW: print the newest push run of WORKFLOW at COMMIT on
-# BRANCH; empty when there is none.
-commit_run() {
-  local workflow=$1
-  api_get "repos/$REPO/actions/workflows/$workflow/runs?branch=$BRANCH&event=push&head_sha=$COMMIT&per_page=1" \
-    | jq -c '.workflow_runs[0] // empty'
-}
-
 # wait_until_completed ID URL: wait for a run to complete, since only a
 # completed run can be rerun; fail when it is still running at the end.
 wait_until_completed() {
@@ -85,8 +68,9 @@ rerun() {
 }
 
 require_created_by_this_run
-workflow=$(workflow_id)
-run=$(commit_run "$workflow")
+# This run's workflow is the caller's.
+workflow=$(workflow_id "$RUN_ID")
+run=$(commit_run "$workflow" "$BRANCH" "$COMMIT")
 [[ -n $run ]] \
   || fail "no push run of this workflow at $COMMIT on $BRANCH; publish $TAG from $COMMIT by hand"
 id=$(jq -r .id <<<"$run")

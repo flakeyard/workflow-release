@@ -13,7 +13,7 @@ pending_prs() {
 pr() {
   local number=$1 base=$2 version=$3
   fixture "repos/$REPO/pulls/$number" \
-    "{\"base\":{\"ref\":\"$base\"},\"merge_commit_sha\":\"m$number\"}"
+    "{\"number\":$number,\"base\":{\"ref\":\"$base\"},\"merge_commit_sha\":\"m$number\"}"
   manifest "$version" "m$number"
 }
 
