@@ -19,10 +19,15 @@ inputs:
     required: true
   manifest-file:
     required: true
+outputs:
+  skip:
+    description: "'true' when the push is to release/v0, where nothing is released."
+    value: ${{ steps.run.outputs.skip }}
 runs:
   using: composite
   steps:
-    - name: Check the run
+    - id: run
+      name: Check the run
       shell: bash
       env:
         CLIENT_ID: ${{ inputs.app-client-id }}
@@ -33,6 +38,7 @@ runs:
         DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       run: '"$GITHUB_ACTION_PATH/inputs.sh"'
     - name: Check the release-please configuration
+      if: ${{ steps.run.outputs.skip != 'true' }}
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}

@@ -3,7 +3,7 @@ name: release-self
 
 on:
   push:
-    branches: [main, "release/v*"]
+    branches: [main, "release/v[1-9]*"]
 
 permissions: {}
 

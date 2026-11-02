@@ -12,8 +12,9 @@ only when a release is due.
 
 ## Usage
 
-Call it on pushes to the default branch and to `release/vN` branches; these are
-the only events it supports.
+Call it on pushes to the default branch and to `release/vN` branches, with
+`N >= 1`; these are the only events it supports. Releases `0.y.z` are made only
+on the default branch, and a push to `release/v0` is skipped.
 
 ```yaml
 # .github/workflows/release.yaml
@@ -21,7 +22,7 @@ name: release
 
 on:
   push:
-    branches: [main, "release/v*"]
+    branches: [main, "release/v[1-9]*"]
 
 permissions: {}
 
@@ -101,8 +102,8 @@ Before the first run:
 1. Install the App on the repository with read and write access to contents,
    issues and pull requests.
 2. Create the environment, here `release`, restrict its deployment branches to
-   the default branch and `release/v*`, and store the App's private key in it as
-   `APP_PRIVATE_KEY`.
+   the default branch and `release/v[1-9]*`, and store the App's private key in
+   it as `APP_PRIVATE_KEY`.
 3. Store the App's client ID, here in the variable `RELEASE_APP_CLIENT_ID`.
 4. If a ruleset restricts tags `v*`, allow the App to bypass it.
 
@@ -230,9 +231,10 @@ are skipped.
 
 ## Behaviour
 
-- **Branches.** Runs only on the default branch and on `release/vN`. On
-  `release/vN`, release-please works on that branch, and the newest release of
-  the repository stays marked as latest.
+- **Branches.** Runs only on the default branch and on `release/vN` with
+  `N >= 1`; on `release/v0`, `Plan` only reports a notice and every other job is
+  skipped. On `release/vN`, release-please works on that branch, and the newest
+  release of the repository stays marked as latest.
 - **Jobs.** `Plan` checks the run and decides, without the key and without the
   environment, whether a release is due. `Release` creates releases and moves
   `vX`; it is the only job that uses the key, except `Release pull request` with
