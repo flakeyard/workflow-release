@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.0](https://github.com/flakeyard/workflow-release/compare/v0.1.1...v0.2.0) (2026-11-02)
+
+
+### Features
+
+* check the App key where the token is created ([#11](https://github.com/flakeyard/workflow-release/issues/11)) ([cab9363](https://github.com/flakeyard/workflow-release/commit/cab9363ac02b253edf15319640fba938acbec887))
+* decide whether a release is due ([#10](https://github.com/flakeyard/workflow-release/issues/10)) ([da96e84](https://github.com/flakeyard/workflow-release/commit/da96e846c1ce15522b75de71b13c278010ecb7c1))
+* gate only the job that releases ([#12](https://github.com/flakeyard/workflow-release/issues/12)) ([4648ded](https://github.com/flakeyard/workflow-release/commit/4648ded71b4c7c6577f660b1747a23ec24585306))
+
+
+### Bug Fixes
+
+* abandon by reverting, no takeover without a run, skip release/v0 ([#14](https://github.com/flakeyard/workflow-release/issues/14)) ([e7d0835](https://github.com/flakeyard/workflow-release/commit/e7d0835cbefcdb7e7f76ac334d08931abcbadf6f))
+
 ## [0.1.1](https://github.com/flakeyard/workflow-release/compare/v0.1.0...v0.1.1) (2026-10-31)
 
 
