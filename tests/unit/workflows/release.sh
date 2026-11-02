@@ -64,6 +64,9 @@ else
     ".jobs.plan | (gated | not) and ([.steps[] | .with.token // empty] | all(. == \"\${{ github.token }}\"))"
   graph_check "latest and state use GITHUB_TOKEN" \
     "[.jobs.latest, .jobs.state | .steps[] | .with.token] | all(. == \"\${{ github.token }}\")"
+  graph_check "on release/v0 the plan stops after the preflight and nothing runs" \
+    ".jobs.plan | (.outputs.checked | contains(\"steps.preflight.outputs.skip != 'true'\"))
+    and ([.steps[1:][] | .if // \"\"] | all(contains(\"steps.preflight.outputs.skip != 'true'\")))"
   graph_check "outputs come from the state job" \
     "[.on.workflow_call.outputs[] | .value | select(contains(\"jobs.state.outputs.state\") | not)] == []"
 fi

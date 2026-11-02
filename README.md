@@ -12,8 +12,9 @@ only when a release is due.
 
 ## Usage
 
-Call it on pushes to the default branch and to `release/vN` branches; these are
-the only events it supports.
+Call it on pushes to the default branch and to `release/vN` branches, with
+`N >= 1`; these are the only events it supports. Releases `0.y.z` are made only
+on the default branch, and a push to `release/v0` is skipped.
 
 ```yaml
 # .github/workflows/release.yaml
@@ -21,7 +22,7 @@ name: release
 
 on:
   push:
-    branches: [main, "release/v*"]
+    branches: [main, "release/v[1-9]*"]
 
 permissions: {}
 
@@ -101,8 +102,8 @@ Before the first run:
 1. Install the App on the repository with read and write access to contents,
    issues and pull requests.
 2. Create the environment, here `release`, restrict its deployment branches to
-   the default branch and `release/v*`, and store the App's private key in it as
-   `APP_PRIVATE_KEY`.
+   the default branch and `release/v[1-9]*`, and store the App's private key in
+   it as `APP_PRIVATE_KEY`.
 3. Store the App's client ID, here in the variable `RELEASE_APP_CLIENT_ID`.
 4. If a ruleset restricts tags `v*`, allow the App to bypass it.
 
@@ -230,9 +231,10 @@ are skipped.
 
 ## Behaviour
 
-- **Branches.** Runs only on the default branch and on `release/vN`. On
-  `release/vN`, release-please works on that branch, and the newest release of
-  the repository stays marked as latest.
+- **Branches.** Runs only on the default branch and on `release/vN` with
+  `N >= 1`; on `release/v0`, `Plan` only reports a notice and every other job is
+  skipped. On `release/vN`, release-please works on that branch, and the newest
+  release of the repository stays marked as latest.
 - **Jobs.** `Plan` checks the run and decides, without the key and without the
   environment, whether a release is due. `Release` creates releases and moves
   `vX`; it is the only job that uses the key, except `Release pull request` with
@@ -252,8 +254,7 @@ are skipped.
     `release-please--branches--<branch>`, still labelled `autorelease: pending`;
   - takeover: such a pull request was merged earlier, its release does not
     exist, and the newest push run of its merge commit completed without a
-    rejection, or there is none; this run releases it, and the rerun of that run
-    publishes it;
+    rejection; this run releases it, and the rerun of that run publishes it;
   - repair: `move-major-tag` is on, and `vX` must be created or moved forward.
 
   A pending pull request whose run is still queued, running or waiting releases
@@ -263,13 +264,16 @@ are skipped.
   merged pull requests that release-please reads, are never due; `Plan` warns
   about them. The decision is no security boundary: a wrong one costs an
   approval request or delays a release until the next push, and `Release`
-  derives what it does from the repository. The job summary of `Plan` is a hint,
-  not evidence.
+  derives what it does from the repository. `Plan` writes its findings and its
+  decision to its job summary and as notices of the run, which the API can read;
+  they are a hint, not evidence.
 
-- **Age.** A job can wait for approval, and a run can be rerun, for 30 days.
-  When the run of a pending merge commit, or the merge without a run, is older
-  than 29 days, `Plan` fails and asks to abandon that version and cut the next
-  patch release, since the run of its commit can no longer publish it.
+- **Unpublishable releases.** A job can wait for approval, and a run can be
+  rerun, for 30 days. When the merge commit of a pending release pull request
+  has no push run, such as with `[skip ci]` in its message, or its run is older
+  than 29 days, the run of its commit could never publish the release. `Plan`
+  then fails instead of taking over and asks to abandon that version (see
+  [Approval](#approval)).
 - **Reruns.** The outputs are derived from the manifest and the release tag, not
   only from release-please's own outputs, and the latest release and the moving
   tag are synced from the repository's releases. If release-please fails after
@@ -286,8 +290,9 @@ are skipped.
   complete and reruns all its jobs; that run then reports the release, without
   asking for approval, since nothing is due. It fails with what to do when there
   is no such run, when the run is still running after the wait, or when GitHub
-  refuses the rerun, such as for runs older than 30 days: rerun it, or abandon
-  that version and cut the next patch release. Creating a branch, such as
+  refuses the rerun, such as for runs older than 30 days: rerun it, or, when
+  that is not possible, `vX.Y.Z` is released but the run of its commit cannot
+  publish it; cut the next patch release. Creating a branch, such as
   `release/vN` at a release, is never reported as a release.
 - **Moving tag.** `vX` is created or moved to the newest published,
   non-prerelease `vX.Y.Z` of the major version on the branch, only forward. `v0`
@@ -339,16 +344,24 @@ either:
 - **Approve later.** **Re-run failed jobs** of that run: `Release` asks for
   approval again and releases the commit of that run. This works for 30 days
   after the run was created.
-- **Abandon.** Remove the label `autorelease: pending` from the merged release
-  pull request and add `autorelease: abandoned`, which is only for readers. The
-  version is skipped: its tag is never created, its section of `CHANGELOG.md`
-  stays without a tag, and the next push opens a release pull request for the
-  next version, which lists the changes since the previous tag again.
+- **Abandon.** First remove the label `autorelease: pending` from the merged
+  release pull request and add `autorelease: abandoned`, which is only for
+  readers. Then merge a commit that reverts its merge commit, such as
+  `chore: abandon vX.Y.Z` made with `git revert --no-commit MERGE_SHA`. The
+  revert puts the manifest back at the last released version and removes the
+  version's section from `CHANGELOG.md`: release-please finds the latest release
+  only by the version in the manifest, and while it names a version without a
+  tag, it lists the whole history again and bumps the version by all of it. The
+  push of the revert opens a release pull request for the version after the last
+  release, with all changes since that release; it is the abandoned version
+  again unless later commits raise it further. Do not rerun the rejected run
+  afterwards: it asks for approval again but releases nothing, since its pull
+  request is no longer pending.
 
-When `Plan` reports a pending release as too old, abandon it in the same way and
-cut the next patch release, for example by merging a `fix:` commit. When a
-release exists but the run of its commit can no longer publish it, its artifacts
-are never published; cut the next patch release.
+When `Plan` reports a pending release as unpublishable, abandon it in the same
+way. When a release exists but the run of its commit can no longer publish it,
+its artifacts are never published; cut the next patch release, for example by
+merging a `fix:` commit.
 
 ## Requirements
 
@@ -384,17 +397,17 @@ helpers in `lib`: `lib/github/` calls the GitHub API (`api.sh`, `contents.sh`,
 `tags.sh`, `releases.sh`, `pulls.sh`, `runs.sh`), `lib/manifest.sh` reads the
 release-please manifest, `lib/app-key.sh` checks the App inputs,
 `lib/major-tag.sh` works out how `vX` has to change, `lib/clock.sh` measures
-ages and `lib/report.sh` reports errors and the job summary. `tests/run.sh`
-tests them with the stubs in `tests/bin`; the suites in `tests/unit` mirror the
-actions and share the helpers in `tests/lib`. `tests/unit/workflows/release.sh`
-checks the job graph: only `Release` and, with the App, `Release pull request`
-reach the environment and the key, `Release` runs only when it is due or there
-is no environment, and no job with an environment runs code of the repository.
-It reads the workflow with mikefarah `yq` v4, which GitHub-hosted runners have,
-and fails without it; locally, run `nix shell nixpkgs#yq-go -c tests/run.sh`.
-The repository releases itself through
-[`release-self.yaml`](.github/workflows/release-self.yaml). Before a pull
-request, run `tests/run.sh`, shellcheck, shfmt, actionlint and zizmor;
+ages and `lib/report.sh` reports errors, warnings, notices and the job summary.
+`tests/run.sh` tests them with the stubs in `tests/bin`; the suites in
+`tests/unit` mirror the actions and share the helpers in `tests/lib`.
+`tests/unit/workflows/release.sh` checks the job graph: only `Release` and, with
+the App, `Release pull request` reach the environment and the key, `Release`
+runs only when it is due or there is no environment, and no job with an
+environment runs code of the repository. It reads the workflow with mikefarah
+`yq` v4, which GitHub-hosted runners have, and fails without it; locally, run
+`nix shell nixpkgs#yq-go -c tests/run.sh`. The repository releases itself
+through [`release-self.yaml`](.github/workflows/release-self.yaml). Before a
+pull request, run `tests/run.sh`, shellcheck, shfmt, actionlint and zizmor;
 actionlint does not yet know the `$/` syntax and `queue: max` and reports them
 as errors. The design follows
 [FY-0007](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0007-branching-and-releases.md),

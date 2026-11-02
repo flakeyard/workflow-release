@@ -116,6 +116,7 @@ earlier_runs() {
 plan_setup
 run "release-plan: nothing pending" ok "$script"
 expect_due false
+expect message "::notice::No release due."
 finish
 
 plan_setup
@@ -195,6 +196,8 @@ done
 takeover_setup
 run "release-plan: the merge run completed without a review" ok "$script"
 expect_due true takeover
+expect message "::notice::takeover of v1.3.0: https://x/runs/77 completed without releasing it;"
+expect message "::notice::Due: takeover."
 finish
 
 takeover_setup
@@ -203,16 +206,20 @@ run "release-plan: the merge run failed after the approval" ok "$script"
 expect_due true takeover
 finish
 
-takeover_setup
-fixture "$(commit_runs_path m5)" '{"workflow_runs":[]}'
-run "release-plan: the merge commit has no run" ok "$script"
-expect_due true takeover
-finish
+for environment in release ""; do
+  takeover_setup ENVIRONMENT="$environment"
+  fixture "$(commit_runs_path m5)" '{"workflow_runs":[]}'
+  run "release-plan: the merge commit has no run (environment '$environment')" fail "$script"
+  expect message "the release of #5 at m5 can never be published from the run of its commit: its merge commit has no push run of this workflow; abandon v1.3.0 (README, Abandon)"
+  expect output due ""
+  finish
+done
 
 takeover_setup
 reviews 77 release:rejected
 run "release-plan: the release was rejected" ok "$script"
 expect_due false
+expect message "::notice::not due: the release of v1.3.0 was rejected in https://x/runs/77"
 finish
 
 takeover_setup
@@ -237,16 +244,9 @@ for environment in release ""; do
   takeover_setup ENVIRONMENT="$environment"
   merge_run m5 completed "$too_old"
   run "release-plan: the merge run is too old (environment '$environment')" fail "$script"
-  expect message "the release of #5 at m5 can no longer be published from the run of its commit; abandon v1.3.0 (README, Abandon) and cut the next patch release"
+  expect message "the release of #5 at m5 can never be published from the run of its commit: the run of its merge commit is too old to be approved or rerun; abandon v1.3.0 (README, Abandon)"
   finish
 done
-
-plan_setup
-pending "$(pr_json 5 m5 "$head" main "$too_old")"
-fixture "$(commit_runs_path m5)" '{"workflow_runs":[]}'
-run "release-plan: the merge without a run is too old" fail "$script"
-expect message "cut the next patch release"
-finish
 
 takeover_setup
 merge_run m5 waiting "$too_old"

@@ -20,6 +20,8 @@ source "$lib/report.sh"
 
 # A run of the release commit that is still running is waited for this long.
 readonly WAIT_ATTEMPTS=40 WAIT_SECONDS=15
+# What to do when the run of the release commit cannot publish TAG.
+readonly CANNOT_PUBLISH="$TAG is released but the run of its commit cannot publish it; cut the next patch release"
 
 # this_run_started: print when the first attempt of this run started.
 this_run_started() {
@@ -64,7 +66,7 @@ wait_until_completed() {
 rerun() {
   local id=$1 url=$2
   api_request POST "$(run_path "$id")/rerun" >/dev/null \
-    || fail "could not rerun $url, the run of $COMMIT (runs can be rerun for 30 days); rerun it, or abandon $TAG and cut the next patch release"
+    || fail "could not rerun $url, the run of $COMMIT (runs can be rerun for 30 days); rerun it, or if it cannot be rerun: $CANNOT_PUBLISH"
 }
 
 require_created_by_this_run
@@ -72,7 +74,7 @@ require_created_by_this_run
 workflow=$(workflow_id "$RUN_ID")
 run=$(commit_run "$workflow" "$BRANCH" "$COMMIT")
 [[ -n $run ]] \
-  || fail "no push run of this workflow at $COMMIT on $BRANCH; abandon $TAG and cut the next patch release"
+  || fail "no push run of this workflow at $COMMIT on $BRANCH: $CANNOT_PUBLISH"
 id=$(jq -r .id <<<"$run")
 url=$(jq -r .html_url <<<"$run")
 wait_until_completed "$id" "$url"

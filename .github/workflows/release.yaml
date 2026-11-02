@@ -93,7 +93,8 @@ jobs:
       issues: write # relabel pending release pull requests
       pull-requests: read # merged release pull requests
     outputs:
-      checked: ${{ steps.preflight.outcome == 'success' }}
+      # False on release/v0 too, so that every later job is skipped.
+      checked: ${{ steps.preflight.outcome == 'success' && steps.preflight.outputs.skip != 'true' }}
       due: ${{ steps.plan.outputs.due }}
     steps:
       - id: preflight
@@ -106,12 +107,14 @@ jobs:
           config-file: ${{ inputs.config-file }}
           manifest-file: ${{ inputs.manifest-file }}
 
-      - uses: $/.github/actions/reconcile-pending-prs
+      - if: ${{ steps.preflight.outputs.skip != 'true' }}
+        uses: $/.github/actions/reconcile-pending-prs
         with:
           token: ${{ github.token }}
           manifest-file: ${{ inputs.manifest-file }}
 
       - id: plan
+        if: ${{ steps.preflight.outputs.skip != 'true' }}
         uses: $/.github/actions/release-plan
         with:
           token: ${{ github.token }}

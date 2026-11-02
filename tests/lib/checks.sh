@@ -34,6 +34,7 @@ expect() {
     no-call) ! grep -qF -- "$2" "$CALLS" || report "unexpected call '$2'" ;;
     no-calls) [[ ! -s $CALLS ]] || report "unexpected calls: $(paste -sd';' "$CALLS")" ;;
     message) grep -qF -- "$2" "$work/stdout" "$work/stderr" || report "no message '$2' in: $(cat "$work/stdout" "$work/stderr")" ;;
+    no-message) ! grep -qF -- "$2" "$work/stdout" "$work/stderr" || report "unexpected message '$2'" ;;
   esac
 }
 
