@@ -15,8 +15,9 @@ commit_runs_path() {
   printf '%s\n' "repos/$REPO/actions/workflows/5/runs?branch=main&event=push&head_sha=$1&per_page=1"
 }
 branch_runs_path="repos/o/r/actions/workflows/5/runs?branch=main&event=push&per_page=20"
-# The first page of the window; ${window_path%1}N is page N.
-window_path="repos/o/r/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100&page=1"
+# The first page of the window, newest created first like release-please
+# reads it; ${window_path%1}N is page N.
+window_path="repos/o/r/pulls?state=closed&base=main&sort=created&direction=desc&per_page=100&page=1"
 pending_path="repos/o/r/issues?state=closed&labels=autorelease:%20pending&per_page=100"
 
 # pr_json NUMBER COMMIT [HEAD] [BASE] [MERGED_AT] [TITLE]: a merged pull
