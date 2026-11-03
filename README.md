@@ -436,9 +436,7 @@ Following
 some checks of this repository are not released yet. Until they are:
 
 - actionlint, zizmor, shellcheck, shfmt, prettier, markdownlint, typos and REUSE
-  run locally before every pull request; the atoms will provide them;
-- rulesets require no status checks until every repository has adopted
-  workflow-check.
+  run locally before every pull request; the atoms will provide them.
 
 ## License
 
