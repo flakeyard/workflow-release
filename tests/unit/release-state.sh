@@ -54,11 +54,64 @@ expect state released true
 expect output elsewhere-tag ""
 finish
 
+# A takeover in this run released v1.3.0 at its merge commit m5, which SHA
+# reverted: the manifest at SHA is back at 1.2.3.
 setup
 released_at 1.2.3 bbb
-export CREATED=true CREATED_TAG=v1.2.2
+tag v1.3.0 m5
+release v1.3.0
+export CREATED=true CREATED_TAG=v1.3.0
 run "release-state: this run released another tag" ok "$script"
 expect state released false
+expect output elsewhere-tag v1.3.0
+expect output elsewhere-sha m5
+expect output elsewhere-created true
+expect message "v1.3.0 was released at m5, not at aaa"
+finish
+
+setup
+released_at 1.2.3 "$SHA"
+tag v1.3.0 m5
+release v1.3.0
+export CREATED=true CREATED_TAG=v1.3.0
+run "release-state: this run released another tag, the commit is released" ok "$script"
+expect state released true
+expect state tag v1.2.3
+expect output elsewhere-tag v1.3.0
+expect output elsewhere-sha m5
+finish
+
+setup
+released_at 1.2.3 bbb
+tag v1.3.0 m5
+late "repos/$REPO/git/ref/tags/v1.3.0"
+export CREATED=true CREATED_TAG=v1.3.0
+run "release-state: waits for another tag this run created" ok "$script"
+expect output elsewhere-tag v1.3.0
+expect output elsewhere-sha m5
+finish
+
+setup
+released_at 1.2.3 bbb
+export CREATED=true CREATED_TAG=v1.3.0
+run "release-state: another tag this run created never appears" fail "$script"
+expect message "release-please created v1.3.0, but the tag does not exist"
+finish
+
+setup
+released_at 1.2.3 bbb
+tag v1.3.0 "$SHA"
+export CREATED=true CREATED_TAG=v1.3.0
+run "release-state: another tag this run created at its commit fails" fail "$script"
+expect message "release-please created v1.3.0 at aaa, whose manifest has 1.2.3"
+expect output elsewhere-tag ""
+finish
+
+setup
+released_at 1.2.3 bbb
+export CREATED=true CREATED_TAG=../v1.3.0
+run "release-state: another tag this run created is not vX.Y.Z" fail "$script"
+expect message "release-please created '../v1.3.0', not a tag vX.Y.Z"
 expect output elsewhere-tag ""
 finish
 
