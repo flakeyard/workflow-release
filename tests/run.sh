@@ -21,6 +21,8 @@ source "$root/tests/lib/fixtures/manifest.sh"
 source "$root/tests/lib/fixtures/tags.sh"
 # shellcheck source=lib/fixtures/releases.sh
 source "$root/tests/lib/fixtures/releases.sh"
+# shellcheck source=lib/workflow.sh
+source "$root/tests/lib/workflow.sh"
 
 for suite in "$root"/tests/unit/**/*.sh; do
   # shellcheck source=/dev/null

@@ -1,12 +1,10 @@
 # shellcheck shell=bash
 # Static tests of the job graph of the release workflow: only the job that
 # releases, and the release pull request when it uses the App, may reach the
-# environment and the key. The workflow is read as JSON with mikefarah yq v4,
-# which GitHub-hosted runners have.
+# environment and the key.
 # shellcheck disable=SC2034 # current is the test that report and finish count.
 
 : "${root:?}"
-workflow_file=$root/.github/workflows/release.yaml
 
 # Jobs that may use the environment and the key, sorted.
 readonly KEY_JOBS='["pull-request","release"]'
@@ -15,11 +13,6 @@ readonly KEY_PRESENCE="secrets.APP_PRIVATE_KEY != ''"
 # References to actions that are not code of the calling repository: actions
 # of this workflow's repository, and others pinned by commit.
 readonly OWN_OR_PINNED='^(\$/\.github/actions/[a-z-]+|[a-z0-9-]+/[a-z0-9-]+@[0-9a-f]{40})$'
-
-# have_yq: mikefarah yq v4 is installed.
-have_yq() {
-  command -v yq >/dev/null && [[ $(yq --version 2>&1) == *mikefarah* ]]
-}
 
 # graph_check NAME FILTER: FILTER, a jq expression over the workflow, is
 # true.
@@ -36,13 +29,8 @@ graph_check() {
   finish
 }
 
-if ! have_yq; then
-  setup
-  current="release.yaml: yq is installed"
-  report "the static tests of the workflow need mikefarah yq v4; run them with: nix shell nixpkgs#yq-go -c tests/run.sh"
-  finish
-else
-  workflow=$(yq -o=json . "$workflow_file")
+if require_yq release.yaml; then
+  workflow=$(load_workflow release.yaml)
 
   graph_check "only the release jobs use an environment" \
     "[.jobs | to_entries[] | select(.value | gated) | .key] | sort == \$key_jobs"

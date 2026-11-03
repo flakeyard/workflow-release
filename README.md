@@ -156,7 +156,7 @@ Leave `app-client-id` empty and omit the secret. Then:
   release-please cannot open the release pull request.
 - Pull requests opened with `GITHUB_TOKEN` start no workflows. Set
   `check-workflow` to the file name of your check workflow, for example
-  `check.yaml`; it is started with `workflow_dispatch` on the open release pull
+  `test.yaml`; it is started with `workflow_dispatch` on the open release pull
   request in every run.
 - A check run started that way does not count for required checks. The check
   workflow needs `statuses: write` and must report its result as a commit status
@@ -400,37 +400,45 @@ release-please manifest, `lib/app-key.sh` checks the App inputs,
 ages and `lib/report.sh` reports errors, warnings, notices and the job summary.
 `tests/run.sh` tests them with the stubs in `tests/bin`; the suites in
 `tests/unit` mirror the actions and share the helpers in `tests/lib`.
-`tests/unit/workflows/release.sh` checks the job graph: only `Release` and, with
-the App, `Release pull request` reach the environment and the key, `Release`
-runs only when it is due or there is no environment, and no job with an
-environment runs code of the repository. It reads the workflow with mikefarah
-`yq` v4, which GitHub-hosted runners have, and fails without it; locally, run
-`nix shell nixpkgs#yq-go -c tests/run.sh`. The repository releases itself
-through [`release-self.yaml`](.github/workflows/release-self.yaml). Before a
-pull request, run `tests/run.sh`, shellcheck, shfmt, actionlint and zizmor;
-actionlint does not yet know the `$/` syntax and `queue: max` and reports them
-as errors. The design follows
+`tests/unit/workflows` has one file per workflow. `release.sh` checks the job
+graph: only `Release` and, with the App, `Release pull request` reach the
+environment and the key, `Release` runs only when it is due or there is no
+environment, and no job with an environment runs code of the repository; the
+others check that the repository's own workflows call workflow-check and
+workflow-scorecard as
+[FY-0031](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0031-check-pull-requests-and-pushes-with-workflow-check.md)
+asks. They read the workflows with mikefarah `yq` v4, which GitHub-hosted
+runners have, and fail without it; locally, run
+`nix shell nixpkgs#yq-go -c tests/run.sh`.
+
+The repository checks itself with [`test.yaml`](.github/workflows/test.yaml):
+its job `unit` runs `tests/run.sh`, and the job `check` calls
+[workflow-check](https://github.com/flakeyard/workflow-check), which checks the
+title of the pull request, `renovate.json` and the tags of its presets.
+[`scorecard.yaml`](.github/workflows/scorecard.yaml) runs OpenSSF Scorecard
+through [workflow-scorecard](https://github.com/flakeyard/workflow-scorecard).
+The repository releases itself through
+[`release-self.yaml`](.github/workflows/release-self.yaml), whose release pull
+requests are checked by a dispatched run of `test.yaml`. Before a pull request,
+run `tests/run.sh`, shellcheck, shfmt, actionlint and zizmor; actionlint does
+not yet know the `$/` syntax and `queue: max` and reports them as errors. The
+design follows
 [FY-0007](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0007-branching-and-releases.md),
-[FY-0028](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0028-supply-chain.md)
+[FY-0028](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0028-supply-chain.md),
+[FY-0030](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0030-actions-workflows-and-release-bot.md)
 and
-[FY-0030](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0030-actions-workflows-and-release-bot.md).
+[FY-0031](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0031-check-pull-requests-and-pushes-with-workflow-check.md).
 
 ## Bootstrap
 
 Following
 [FY-0022](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0022-bootstrap.md),
-this repository has no CI checks yet. Until they are released:
+some checks of this repository are not released yet. Until they are:
 
-- `tests/run.sh`, actionlint, zizmor, shellcheck, shfmt, prettier, markdownlint,
-  typos and REUSE run locally before every pull request; `workflow-check` and
-  the atoms will provide them;
-- pull request titles are checked by the reviewer; `workflow-check` will check
-  them;
-- CI does not check that the tag of the preset in `renovate.json` belongs to an
-  immutable release
-  ([FY-0028](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0028-supply-chain.md));
-  `workflow-check` will check it;
-- OpenSSF Scorecard comes with `workflow-check`.
+- actionlint, zizmor, shellcheck, shfmt, prettier, markdownlint, typos and REUSE
+  run locally before every pull request; the atoms will provide them;
+- rulesets require no status checks until every repository has adopted
+  workflow-check.
 
 ## License
 
