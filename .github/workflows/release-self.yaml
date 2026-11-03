@@ -23,6 +23,8 @@ jobs:
       # The environment requires the owner's approval; release pull requests
       # are opened with GITHUB_TOKEN, so that only releases wait for it.
       app-pull-requests: false
+      # Release pull requests opened with GITHUB_TOKEN start no workflows.
+      check-workflow: test.yaml
       move-major-tag: true
     secrets:
       APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
