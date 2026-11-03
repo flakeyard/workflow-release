@@ -41,7 +41,13 @@ if require_yq release.yaml; then
     | length > 0 and all(contains(\"inputs.app-pull-requests &&\"))"
   graph_check "release runs only when no environment is set or the plan finds it due" \
     ".jobs.release | .needs == \"plan\" and .environment == \"\${{ inputs.environment }}\"
-    and (condition | contains(\"needs.plan.outputs.checked == 'true' && (inputs.environment == '' || needs.plan.outputs.due == 'true')\"))"
+    and (condition | contains(\"&& (inputs.environment == '' || needs.plan.outputs.due == 'true') }}\"))"
+  graph_check "the plan reports whether its release plan succeeded" \
+    ".jobs.plan.outputs.planned == \"\${{ steps.plan.outcome == 'success' }}\""
+  # A failed plan, such as for a release that can never be published, stops
+  # the release also without an environment.
+  graph_check "release does not run when the plan failed, with or without an environment" \
+    ".jobs.release | condition | startswith(\"\${{ !cancelled() && needs.plan.outputs.planned == 'true' && (\")"
   graph_check "jobs with an environment run no code of the repository" \
     "[.jobs[] | select(gated) | .steps[] | select(has(\"run\") or ((.uses // \"\") | test(\$own_or_pinned) | not))] == []"
   graph_check "jobs with an environment check out nothing" \
