@@ -33,7 +33,7 @@ on:
       check-workflow:
         description: >-
           Check workflow to start on the release pull request when it is
-          opened with GITHUB_TOKEN, such as check.yaml.
+          opened with GITHUB_TOKEN, such as test.yaml.
         type: string
         default: ""
       config-file:
