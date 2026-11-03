@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/flakeyard/workflow-release/compare/v0.2.0...v0.2.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* name test.yaml as the example check workflow ([#20](https://github.com/flakeyard/workflow-release/issues/20)) ([7fca3c6](https://github.com/flakeyard/workflow-release/commit/7fca3c65fe81a848666e5a41a816358e6e8a083c))
+
 ## [0.2.0](https://github.com/flakeyard/workflow-release/compare/v0.1.1...v0.2.0) (2026-11-02)
 
 
