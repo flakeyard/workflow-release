@@ -56,6 +56,12 @@ if require_yq release.yaml; then
     "[.jobs | to_entries[] | select(.key != \"plan\") | select(.value | condition | startswith(\"\${{ !cancelled() \") | not) | .key] == []"
   graph_check "the plan uses no environment and only GITHUB_TOKEN" \
     ".jobs.plan | (gated | not) and ([.steps[] | .with.token // empty] | all(. == \"\${{ github.token }}\"))"
+  # A release on release/vN can take latest from one on the default branch
+  # while it is created; the job of the other branch's run restores it.
+  graph_check "latest runs on every branch, one job at a time" \
+    ".jobs.latest | (condition == \"\${{ !cancelled() && needs.plan.outputs.checked == 'true' }}\")
+    and .concurrency[\"cancel-in-progress\"] == false and .concurrency.queue == \"max\"
+    and (.concurrency.group | contains(\"github.ref\") | not)"
   graph_check "latest and state use GITHUB_TOKEN" \
     "[.jobs.latest, .jobs.state | .steps[] | .with.token] | all(. == \"\${{ github.token }}\")"
   graph_check "on release/v0 the plan stops after the preflight and nothing runs" \

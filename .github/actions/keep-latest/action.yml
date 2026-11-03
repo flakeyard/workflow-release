@@ -1,5 +1,5 @@
 name: Keep the newest release latest
-description: Marks the newest published vX.Y.Z as latest, for releases from release/vN.
+description: Marks the newest published vX.Y.Z as latest, also after a release from release/vN.
 inputs:
   token:
     required: true

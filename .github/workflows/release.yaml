@@ -210,13 +210,14 @@ jobs:
             || (needs.release.result == 'failure'
             && needs.release.outputs.created != 'true') }}
 
-  # Marking a release as latest needs neither the key nor the environment.
+  # Marking a release as latest needs neither the key nor the environment. It
+  # runs on every branch: a release on release/vN can take latest from one on
+  # the default branch, and the job of the run that comes last in the queue
+  # sees both releases.
   latest:
     name: Keep the latest release
     needs: [plan, release]
-    if: >-
-      ${{ !cancelled() && needs.plan.outputs.checked == 'true'
-      && startsWith(github.ref, 'refs/heads/release/') }}
+    if: ${{ !cancelled() && needs.plan.outputs.checked == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     concurrency:
