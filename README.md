@@ -260,13 +260,14 @@ are skipped.
   A pending pull request whose run is still queued, running or waiting releases
   itself. One whose release was rejected is not due again (see
   [Approval](#approval)), and a rejected repair asks again only after the next
-  release. Pending pull requests from another branch, or older than the 200
-  merged pull requests that release-please reads, are never due; `Plan` warns
-  about them. The decision is no security boundary: a wrong one costs an
-  approval request or delays a release until the next push, and `Release`
-  derives what it does from the repository. `Plan` writes its findings and its
-  decision to its job summary and as notices of the run, which the API can read;
-  they are a hint, not evidence.
+  release. Pending pull requests from another branch, older than the 200 merged
+  pull requests that release-please reads, or without a root version X.Y.Z in
+  the manifest at their merge commit, are never due; `Plan` warns about them,
+  and they are never relabelled `autorelease: tagged`. The decision is no
+  security boundary: a wrong one costs an approval request or delays a release
+  until the next push, and `Release` derives what it does from the repository.
+  `Plan` writes its findings and its decision to its job summary and as notices
+  of the run, which the API can read; they are a hint, not evidence.
 
 - **Unpublishable releases.** A job can wait for approval, and a run can be
   rerun, for 30 days. When the merge commit of a pending release pull request

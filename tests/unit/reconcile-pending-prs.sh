@@ -8,13 +8,21 @@ pending_prs() {
   fixture "repos/$REPO/issues?state=closed&labels=autorelease:%20pending&per_page=100" "$1"
 }
 
-# pr NUMBER BASE VERSION: a pull request merged into BASE as commit mNUMBER,
-# where the manifest has VERSION.
+# pr NUMBER BASE VERSION [HEAD]: a pull request from HEAD, release-please's
+# branch by default, merged into BASE as commit mNUMBER, where the manifest has
+# VERSION.
 pr() {
   local number=$1 base=$2 version=$3
-  fixture "repos/$REPO/pulls/$number" \
-    "{\"number\":$number,\"base\":{\"ref\":\"$base\"},\"merge_commit_sha\":\"m$number\"}"
+  pr_json "$number" "$base" "${4:-release-please--branches--$base}"
   manifest "$version" "m$number"
+}
+
+# pr_json NUMBER BASE HEAD: the pull request without its manifest.
+pr_json() {
+  local number=$1 base=$2 head=$3
+  fixture "repos/$REPO/pulls/$number" "$(jq -nc --argjson number "$number" \
+    --arg base "$base" --arg head "$head" \
+    '{number: $number, base: {ref: $base}, head: {ref: $head}, merge_commit_sha: "m\($number)"}')"
 }
 
 # reconcile_setup: pending pull requests into main and release/v1; #8 was
@@ -94,4 +102,52 @@ pr 9 release/v1 1.1.1
 release v1.1.1
 run "reconcile: release branch" ok "$script"
 expect call "POST repos/$REPO/issues/9/labels"
+finish
+
+setup
+export BASE=main
+pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
+pr 3 main 1.2.0 feature
+release v1.2.0
+run "reconcile: pending label on a pull request from another head branch" ok "$script"
+expect no-calls
+finish
+
+# The merge commit predates the manifest: the contents API answers 404.
+setup
+export BASE=main
+pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
+pr_json 3 main release-please--branches--main
+run "reconcile: no manifest at the merge commit" ok "$script"
+expect no-calls
+finish
+
+# no_version_case NAME CONTENT [TAG]: a manifest whose root version is not
+# X.Y.Z leaves the pull request pending and reaches no API path. A release of
+# TAG, the tag such a version would give, exists but is never read.
+no_version_case() {
+  local name=$1 content=$2 tag=${3:-}
+  setup
+  export BASE=main
+  pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
+  pr_json 3 main release-please--branches--main
+  file_fixture "$MANIFEST" m3 "$content"
+  [[ -z $tag ]] || release "$tag"
+  run "reconcile: root version $name" ok "$script"
+  expect no-calls
+  finish
+}
+no_version_case "missing" '{"x": "1.2.0"}'
+no_version_case "an object" '{".": {"a": 1}}'
+no_version_case "a path" '{".": "../../x?y=1"}' "v../../x?y=1"
+no_version_case "with a leading zero" '{".": "01.2.0"}' v01.2.0
+no_version_case "in a manifest that is no JSON" 'not json'
+
+setup
+export BASE=main
+pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
+pr_json 3 main release-please--branches--main
+fixture "repos/$REPO/contents/$MANIFEST?ref=m3" "HTTP 500"
+run "reconcile: API error reading the manifest fails" fail "$script"
+expect message "HTTP 500"
 finish

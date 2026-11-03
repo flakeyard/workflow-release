@@ -159,6 +159,41 @@ expect_due false
 expect message "::warning::#5 is labelled autorelease: pending but is not from $head"
 finish
 
+# unversioned_case NAME CONTENT [TAG]: the manifest at the merge commit of
+# the pending #5 has no root version X.Y.Z; a release of TAG, the tag such a
+# version would give, exists but is never read.
+unversioned_case() {
+  local name=$1 content=$2 tag=${3:-}
+  takeover_setup
+  file_fixture "$MANIFEST" m5 "$content"
+  [[ -z $tag ]] || fixture "repos/$REPO/releases/tags/$tag" "HTTP 500"
+  run "release-plan: pending with a root version $name" ok "$script"
+  expect_due false
+  expect message "::warning::#5 is pending, but $MANIFEST at its merge commit m5 has no root version X.Y.Z"
+  finish
+}
+unversioned_case "missing" '{"x": "1.3.0"}'
+unversioned_case "that is an object" '{".": {"a": 1}}'
+unversioned_case "that is a path" '{".": "../../x?y=1"}' "v../../x?y=1"
+unversioned_case "with a leading zero" '{".": "08.0.0"}' v08.0.0
+unversioned_case "in a manifest that is no JSON" 'not json'
+
+# The merge commit predates the manifest: the contents API answers 404.
+takeover_setup
+rm -- "$(fixture_file "repos/$REPO/contents/$MANIFEST?ref=m5")"
+run "release-plan: pending without a manifest at its merge commit" ok "$script"
+expect_due false
+expect message "has no root version X.Y.Z, so it is never due"
+finish
+
+plan_setup
+fixture "repos/$REPO/commits/$SHA/pulls" "[$(pr_json 4 "$SHA")]"
+manifest 01.3.0
+run "release-plan: merged with a root version that is not X.Y.Z" ok "$script"
+expect_due false
+expect message "::warning::#4 is pending, but $MANIFEST at its merge commit $SHA has no root version X.Y.Z"
+finish
+
 plan_setup
 pending "$(pr_json 5 m5)"
 fixture "$window_path" '[{"number":6,"merged_at":"x"}]'

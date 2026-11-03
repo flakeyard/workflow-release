@@ -39,6 +39,7 @@ config_case "component" fail \
 config_case "prerelease versioning" fail config="{\"versioning\":\"prerelease\",$ok}"
 config_case "skip releases" fail config="{\"skip-github-release\":true,$ok}"
 config_case "manifest version not X.Y.Z" fail version=1.2
+config_case "manifest version with a leading zero" fail version=01.2.3
 config_case "release/v2 with version 2" ok version=2.1.0 REF=refs/heads/release/v2
 config_case "release/v1 with version 2" fail version=2.1.0 REF=refs/heads/release/v1
 
