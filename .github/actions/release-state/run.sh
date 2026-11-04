@@ -3,7 +3,7 @@
 # published release, released=false otherwise. A release at an older commit
 # that this run created, or may have created before release-please failed, is
 # written as elsewhere-tag and elsewhere-sha, for the run of that commit to
-# publish it.
+# publish it; also when its tag is not the one of the manifest at SHA.
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
 shopt -s inherit_errexit
@@ -31,6 +31,20 @@ is_branch_creation() {
 created_in_this_run() {
   local tag=$1
   [[ ${CREATED:-} == true && ${CREATED_TAG:-} == "$tag" ]]
+}
+
+# created_other_tag TAG: release-please created a tag in this run that is not
+# TAG, the tag of the manifest at SHA. A takeover releases the version of an
+# older merge commit, which a later commit, such as a revert, may have changed.
+created_other_tag() {
+  local tag=$1
+  [[ ${CREATED:-} == true && -n ${CREATED_TAG:-} && $CREATED_TAG != "$tag" ]]
+}
+
+# is_release_tag TAG: TAG is vX.Y.Z.
+is_release_tag() {
+  local tag=$1
+  [[ $tag == v* && ${tag#v} =~ $RELEASE_VERSION ]]
 }
 
 # release_tag_commit TAG: print the commit of TAG, empty when there is no such
@@ -80,6 +94,18 @@ report_elsewhere() {
   fi
 }
 
+# report_created_elsewhere: write the tag that release-please created in this
+# run, not the tag of the manifest at SHA, for the run of its commit to publish.
+report_created_elsewhere() {
+  local commit
+  is_release_tag "$CREATED_TAG" || fail "release-please created '$CREATED_TAG', not a tag vX.Y.Z"
+  commit=$(release_tag_commit "$CREATED_TAG")
+  [[ -n $commit ]] || fail "release-please created $CREATED_TAG, but the tag does not exist"
+  ! at_this_commit "$commit" \
+    || fail "release-please created $CREATED_TAG at $SHA, whose manifest has $version"
+  report_elsewhere "$CREATED_TAG" "$commit"
+}
+
 # state_json VERSION COMMIT RELEASE: print the output, one JSON object with
 # string fields; all of them empty but released=false when VERSION is empty.
 state_json() {
@@ -114,9 +140,13 @@ if [[ -n $commit ]] && at_this_commit "$commit"; then
   state=$(state_json "$version" "$commit" "$release")
   released=true
 else
-  if [[ -n $commit ]]; then report_elsewhere "$tag" "$commit"; fi
   state=$(state_json "" "" "")
   released=false
+fi
+if created_other_tag "$tag"; then
+  report_created_elsewhere
+elif [[ -n $commit ]] && ! at_this_commit "$commit"; then
+  report_elsewhere "$tag" "$commit"
 fi
 echo "state=$state" >>"$GITHUB_OUTPUT"
 summary "manifest $version, released: $released"
