@@ -19,7 +19,8 @@ pending_release_prs() {
 }
 
 # release-please reads only this many merged pull requests of the target
-# branch, the most recently updated first.
+# branch, the most recently created first. Sorting by update would move a pull
+# request whenever it is labelled or commented on.
 readonly RELEASE_PLEASE_WINDOW=200
 readonly PULLS_PER_PAGE=100
 
@@ -34,7 +35,7 @@ commit_pulls() {
 merged_window() {
   local base=$1 page=1 left=$RELEASE_PLEASE_WINDOW body merged taken size
   while ((left > 0)); do
-    body=$(api_get "repos/$REPO/pulls?state=closed&base=$base&sort=updated&direction=desc&per_page=$PULLS_PER_PAGE&page=$page")
+    body=$(api_get "repos/$REPO/pulls?state=closed&base=$base&sort=created&direction=desc&per_page=$PULLS_PER_PAGE&page=$page")
     merged=$(jq -c --argjson left "$left" \
       '[.[] | select(.merged_at != null) | .number][:$left]' <<<"$body")
     jq -r '.[]' <<<"$merged"
