@@ -248,8 +248,8 @@ are skipped.
   failure of a later job does not affect the outputs. The pull request update is
   retried once after 30 seconds. With the App, `Release pull request` uses the
   environment for the key but creates no deployment.
-- **Due releases.** Without an environment, `Release` runs on every push. With
-  one, it runs only when `Plan` finds a reason:
+- **Due releases.** Without an environment, `Release` runs on every push whose
+  `Plan` succeeds. With one, it runs only when `Plan` finds a reason:
   - release: the push merged a release pull request of release-please, from
     `release-please--branches--<branch>`, still labelled `autorelease: pending`;
   - takeover: such a pull request was merged earlier, its release does not
@@ -273,7 +273,8 @@ are skipped.
   has no push run, such as with `[skip ci]` in its message, or its run is older
   than 29 days, the run of its commit could never publish the release. `Plan`
   then fails instead of taking over and asks to abandon that version (see
-  [Approval](#approval)).
+  [Approval](#approval)), and `Release` does not run, with an environment or
+  without one.
 - **Reruns.** The outputs are derived from the manifest and the release tag, not
   only from release-please's own outputs, and the latest release and the moving
   tag are synced from the repository's releases. If release-please fails after

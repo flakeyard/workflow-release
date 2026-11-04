@@ -95,6 +95,9 @@ jobs:
     outputs:
       # False on release/v0 too, so that every later job is skipped.
       checked: ${{ steps.preflight.outcome == 'success' && steps.preflight.outputs.skip != 'true' }}
+      # False when the plan failed, such as for a release that can never be
+      # published, so that the job that releases is skipped.
+      planned: ${{ steps.plan.outcome == 'success' }}
       due: ${{ steps.plan.outputs.due }}
     steps:
       - id: preflight
@@ -123,14 +126,14 @@ jobs:
           move-major-tag: ${{ inputs.move-major-tag }}
 
   # The only job that uses the key to release and move tags v*. Without an
-  # environment it runs on every push, since there is no approval to save. It
-  # derives what it does from the repository, never from the plan, and runs
-  # no code of the repository.
+  # environment it runs on every push whose plan succeeded, since there is no
+  # approval to save. It derives what it does from the repository, never from
+  # the plan, and runs no code of the repository.
   release:
     name: Release
     needs: plan
     if: >-
-      ${{ !cancelled() && needs.plan.outputs.checked == 'true'
+      ${{ !cancelled() && needs.plan.outputs.planned == 'true'
       && (inputs.environment == '' || needs.plan.outputs.due == 'true') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
