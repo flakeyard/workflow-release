@@ -226,21 +226,22 @@ are skipped.
   for releases. Without an App or with `app-pull-requests: false`, it uses them
   for the release pull request, and `actions` to start `check-workflow`.
 - On every path, `GITHUB_TOKEN` uses `contents` to keep the newest release
-  latest on `release/vN`, and `actions` to rerun the run of a release commit
-  that another run released.
+  latest, and `actions` to rerun the run of a release commit that another run
+  released.
 
 ## Behaviour
 
 - **Branches.** Runs only on the default branch and on `release/vN` with
   `N >= 1`; on `release/v0`, `Plan` only reports a notice and every other job is
-  skipped. On `release/vN`, release-please works on that branch, and the newest
-  release of the repository stays marked as latest.
+  skipped. On `release/vN`, release-please works on that branch. On every
+  branch, the newest release of the repository stays marked as latest.
 - **Jobs.** `Plan` checks the run and decides, without the key and without the
   environment, whether a release is due. `Release` creates releases and moves
   `vX`; it is the only job that uses the key, except `Release pull request` with
   `app-pull-requests`, and it runs no code of the repository. `Release state`
   derives the outputs from the repository. `Keep the latest release` keeps the
-  newest release marked as latest, on `release/vN`.
+  newest release marked as latest, on every branch, so that a release on
+  `release/vN` cannot take it from a newer one on another branch.
   `Publish at the release commit` reruns the run of a release commit that this
   run released. `Release pull request` updates the release pull request after
   `Release`, so that it sees a new tag, and `Start checks` starts
