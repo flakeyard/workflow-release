@@ -75,12 +75,22 @@ describe() {
 }
 
 # pr_tag PR: print the tag that merging PR releases, from the manifest at its
-# merge commit.
+# merge commit; empty when that has no root version X.Y.Z.
 pr_tag() {
   local pr=$1 commit version
   commit=$(jq -r .merge_commit_sha <<<"$pr")
-  version=$(root_version "$commit")
-  printf 'v%s\n' "$version"
+  version=$(find_release_version "$commit")
+  [[ -z $version ]] || printf 'v%s\n' "$version"
+}
+
+# unversioned PR: warn that the plan cannot tell what PR releases, since the
+# manifest at its merge commit has no root version X.Y.Z. Such a version
+# never reaches an API path or a message.
+unversioned() {
+  local pr=$1 number commit
+  number=$(jq -r .number <<<"$pr")
+  commit=$(jq -r .merge_commit_sha <<<"$pr")
+  warning "#$number is pending, but $MANIFEST at its merge commit $commit has no root version X.Y.Z, so it is never due; relabel it autorelease: abandoned"
 }
 
 # merged_here: print the pending release pull request that SHA merged into
@@ -104,6 +114,10 @@ check_release() {
   pr=$(merged_here)
   [[ -n $pr ]] || return 0
   tag=$(pr_tag "$pr")
+  if [[ -z $tag ]]; then
+    unversioned "$pr"
+    return 0
+  fi
   release=$(published_release "$tag")
   [[ -z $release ]] || return 0
   decide release
@@ -151,6 +165,10 @@ check_pending_pr() {
 check_unreleased() {
   local pr=$1 tag release commit run age
   tag=$(pr_tag "$pr")
+  if [[ -z $tag ]]; then
+    unversioned "$pr"
+    return 0
+  fi
   release=$(published_release "$tag")
   [[ -z $release ]] || return 0
   commit=$(jq -r .merge_commit_sha <<<"$pr")
