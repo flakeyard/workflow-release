@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.2](https://github.com/flakeyard/workflow-release/compare/v0.2.1...v0.2.2) (2026-11-04)
+
+
+### Bug Fixes
+
+* check the version at the merge commit of a pending pull request ([#26](https://github.com/flakeyard/workflow-release/issues/26)) ([e858d39](https://github.com/flakeyard/workflow-release/commit/e858d390384989bf6e065e1553e8d572dde80802))
+* keep the latest release on every branch ([#27](https://github.com/flakeyard/workflow-release/issues/27)) ([ab6075e](https://github.com/flakeyard/workflow-release/commit/ab6075e743e4bc2cc6b6cc1b5c2806af7e413c13))
+* read release-please's window newest created first ([#25](https://github.com/flakeyard/workflow-release/issues/25)) ([f250657](https://github.com/flakeyard/workflow-release/commit/f250657a830d448f8dc76f50c98decbc391b11e7))
+* report a release of another tag that this run created ([#24](https://github.com/flakeyard/workflow-release/issues/24)) ([e40989c](https://github.com/flakeyard/workflow-release/commit/e40989ce36fe69f47e29714ecc63446c4517f449))
+* skip the release when the plan fails without an environment ([#23](https://github.com/flakeyard/workflow-release/issues/23)) ([ca563a7](https://github.com/flakeyard/workflow-release/commit/ca563a7f8edcb641d4e10452ddcf271626c898cc))
+
 ## [0.2.1](https://github.com/flakeyard/workflow-release/compare/v0.2.0...v0.2.1) (2026-11-03)
 
 
