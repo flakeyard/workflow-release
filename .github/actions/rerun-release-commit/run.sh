@@ -55,7 +55,7 @@ wait_until_completed() {
   local id=$1 url=$2 attempt status
   for ((attempt = 1; attempt <= WAIT_ATTEMPTS; attempt++)); do
     ((attempt == 1)) || sleep "$WAIT_SECONDS"
-    status=$(api_get "$(run_path "$id")" | jq -r .status)
+    status=$(workflow_run "$id" | jq -r .status)
     [[ $status != completed ]] || return 0
   done
   fail "$url, the run of $COMMIT, is still running; when it completes, rerun it to publish $TAG"
