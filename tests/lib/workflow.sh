@@ -34,13 +34,15 @@ load_workflow() {
   yq -o=json . "$root/.github/workflows/$file"
 }
 
-# workflow_check WORKFLOW NAME FILTER: FILTER, a jq expression over WORKFLOW,
-# the JSON of load_workflow, is true.
+# workflow_check WORKFLOW NAME FILTER [JQ_ARG...]: FILTER, a jq expression
+# over WORKFLOW, the JSON of load_workflow, is true; JQ_ARG are options of jq,
+# such as --arg NAME VALUE.
 workflow_check() {
   local workflow=$1 name=$2 filter=$3
+  shift 3
   setup
   current=$name
-  jq -e "$WORKFLOW_DEFS $filter" <<<"$workflow" >/dev/null \
+  jq -e "$@" "$WORKFLOW_DEFS $filter" <<<"$workflow" >/dev/null \
     || report "not true: $filter"
   finish
 }
