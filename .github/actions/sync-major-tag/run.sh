@@ -32,5 +32,5 @@ case $change in
     gh api --silent -X PATCH "repos/$REPO/git/refs/tags/v$major" -f sha="$target" -F force=true
     summary "moved v$major to $latest"
     ;;
-  *) echo "::warning::v$major not moved: $latest is $change of v$major" ;;
+  *) warning "v$major not moved: $latest is $change of v$major" ;;
 esac

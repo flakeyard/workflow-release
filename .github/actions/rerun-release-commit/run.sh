@@ -79,5 +79,5 @@ id=$(jq -r .id <<<"$run")
 url=$(jq -r .html_url <<<"$run")
 wait_until_completed "$id" "$url"
 rerun "$id" "$url"
-echo "::notice::reran $url, the run of $COMMIT, to publish $TAG"
+notice "reran $url, the run of $COMMIT, to publish $TAG"
 summary "reran $url to publish $TAG"

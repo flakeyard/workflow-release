@@ -18,7 +18,7 @@ readonly RELEASE_BRANCH='^refs/heads/release/v([0-9]+)$'
 config=$(file_at "$CONFIG" "$SHA")
 problems=$(jq -r -f "$(dirname "$0")/config.jq" <<<"$config")
 if [[ -n $problems ]]; then
-  while IFS= read -r line; do echo "::error file=$CONFIG::$line"; done <<<"$problems"
+  while IFS= read -r line; do error "$line" "$CONFIG"; done <<<"$problems"
   exit 1
 fi
 version=$(root_version "$SHA")
