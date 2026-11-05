@@ -1,9 +1,9 @@
 name: Token
 description: >-
   Creates a token of the App given by its client ID, limited to this
-  repository and to contents, issues and pull requests; without an App, it
-  returns GITHUB_TOKEN. Fails when only one of the client ID and the key is
-  given.
+  repository and to contents, issues, pull requests and workflows; without an
+  App, it returns GITHUB_TOKEN. Fails when only one of the client ID and the
+  key is given.
 inputs:
   app-client-id:
     description: Client ID of the App, or empty.
@@ -32,3 +32,6 @@ runs:
         permission-contents: write
         permission-issues: write
         permission-pull-requests: write
+        # GitHub refuses a ref made by an App, such as the tag of a release,
+        # whose commits carry workflow files unless the token may write them.
+        permission-workflows: write
