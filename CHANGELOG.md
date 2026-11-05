@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/flakeyard/workflow-release/compare/v0.2.2...v0.2.3) (2026-11-05)
+
+
+### Bug Fixes
+
+* let the release token write workflows so that releases can tag ([#32](https://github.com/flakeyard/workflow-release/issues/32)) ([8c3b390](https://github.com/flakeyard/workflow-release/commit/8c3b390ea75b73a37ebd70b17b4b888f3907e3e9))
+
 ## [0.2.2](https://github.com/flakeyard/workflow-release/compare/v0.2.1...v0.2.2) (2026-11-04)
 
 
