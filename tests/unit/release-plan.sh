@@ -78,10 +78,11 @@ plan_setup() {
   manifest 1.2.3
 }
 
-# expect_due DUE [REASON]: the decision of the last run.
+# expect_due DUE [REASON]: the decision of the last run, and its REASON when
+# it is due.
 expect_due() {
   expect output due "$1"
-  expect output reason "${2:-}"
+  [[ $1 != true ]] || expect message "::notice::Due: $2."
 }
 
 # takeover_setup [NAME=VALUE...]: #5 merged as m5 is pending, and its run 77
