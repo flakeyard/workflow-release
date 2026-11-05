@@ -1,16 +1,28 @@
 # shellcheck shell=bash source-path=SCRIPTDIR
-# Merged release pull requests of REPO. Source this file; it expects REPO.
+# Release pull requests of REPO. Source this file; it expects REPO.
 
 # shellcheck source=api.sh
 source "${BASH_SOURCE[0]%/*}/api.sh"
 
+# The label of a merged release pull request whose release is not tagged yet,
+# and the same label in an API path or query.
+readonly PENDING_LABEL='autorelease: pending'
+readonly PENDING_LABEL_URL=${PENDING_LABEL// /%20}
+
+# release_head BASE: print the branch of release-please's pull requests into
+# BASE.
+release_head() {
+  local base=$1
+  printf '%s\n' "release-please--branches--$base"
+}
+
 # pending_release_prs BASE: print the merged pull requests into BASE that are
-# still labelled "autorelease: pending", one JSON object per line.
+# still labelled PENDING_LABEL, one JSON object per line.
 pending_release_prs() {
   local base=$1 numbers number pr
   # The label is filtered by the API, so only pending pull requests are listed.
   numbers=$(gh api --paginate \
-    "repos/$REPO/issues?state=closed&labels=autorelease:%20pending&per_page=100" \
+    "repos/$REPO/issues?state=closed&labels=$PENDING_LABEL_URL&per_page=100" \
     --jq '.[] | select(.pull_request.merged_at != null) | .number')
   for number in $numbers; do
     pr=$(api_get "repos/$REPO/pulls/$number")

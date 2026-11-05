@@ -37,8 +37,8 @@ source "$lib/report.sh"
 readonly MAX_RUN_AGE_DAYS=29 SECONDS_PER_DAY=86400
 # Earlier push runs searched for the last approval request of a repair.
 readonly EARLIER_RUNS=20
-readonly PENDING_LABEL='autorelease: pending'
-readonly RELEASE_HEAD=release-please--branches--$BASE
+RELEASE_HEAD=$(release_head "$BASE")
+readonly RELEASE_HEAD
 
 due=false reason=""
 
