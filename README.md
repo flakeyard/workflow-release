@@ -100,7 +100,9 @@ directly. Publish artifacts to registries in the `publish` job instead.
 Before the first run:
 
 1. Install the App on the repository with read and write access to contents,
-   issues and pull requests.
+   issues, pull requests and workflows. GitHub refuses a tag made by an App when
+   its commits carry workflow files and the App may not write them, which is
+   every tag of a repository with workflows.
 2. Create the environment, here `release`, restrict its deployment branches to
    the default branch and `release/v[1-9]*`, and store the App's private key in
    it as `APP_PRIVATE_KEY`.
@@ -221,7 +223,7 @@ are skipped.
   (`actions`) and to relabel release pull requests left pending (`issues`).
 - With an App, its token creates releases and moves `vX`, and with
   `app-pull-requests` updates the release pull request. It is limited to the
-  current repository and to contents, issues and pull requests.
+  current repository and to contents, issues, pull requests and workflows.
 - Without an App, `GITHUB_TOKEN` uses `contents`, `issues` and `pull-requests`
   for releases. Without an App or with `app-pull-requests: false`, it uses them
   for the release pull request, and `actions` to start `check-workflow`.

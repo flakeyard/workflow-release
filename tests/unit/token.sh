@@ -21,3 +21,12 @@ token_case "client ID without key" fail CLIENT_ID=Iv1 \
   message="app-client-id is set but APP_PRIVATE_KEY is empty"
 token_case "key without client ID" fail HAS_KEY=true \
   message="APP_PRIVATE_KEY is set but app-client-id is empty"
+
+# The permissions that the token of the App asks for.
+: "${root:?}"
+if require_yq token/action.yml; then
+  token_action=$(yq -o=json . "$root/.github/actions/token/action.yml")
+  workflow_check "$token_action" "token: the App token may write contents, issues, pull requests and workflows" \
+    '[.runs.steps[] | select(.id == "app") | .with | to_entries[] | select(.key | startswith("permission-"))] | from_entries
+      == {"permission-contents": "write", "permission-issues": "write", "permission-pull-requests": "write", "permission-workflows": "write"}'
+fi
