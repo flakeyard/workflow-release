@@ -16,8 +16,6 @@ shopt -s inherit_errexit
 : "${REPO:?}" "${BASE:?}" "${SHA:?}" "${RUN_ID:?}" "${MANIFEST:?}"
 : "${ENVIRONMENT?}" "${MOVE_MAJOR_TAG:?}"
 lib=$(dirname "$0")/../lib
-# shellcheck source=../lib/github/api.sh
-source "$lib/github/api.sh"
 # shellcheck source=../lib/github/pulls.sh
 source "$lib/github/pulls.sh"
 # shellcheck source=../lib/github/releases.sh
@@ -37,8 +35,8 @@ source "$lib/report.sh"
 readonly MAX_RUN_AGE_DAYS=29 SECONDS_PER_DAY=86400
 # Earlier push runs searched for the last approval request of a repair.
 readonly EARLIER_RUNS=20
-readonly PENDING_LABEL='autorelease: pending'
-readonly RELEASE_HEAD=release-please--branches--$BASE
+RELEASE_HEAD=$(release_head "$BASE")
+readonly RELEASE_HEAD
 
 due=false reason=""
 
@@ -93,6 +91,22 @@ unversioned() {
   warning "#$number is pending, but $MANIFEST at its merge commit $commit has no root version X.Y.Z, so it is never due; relabel it autorelease: abandoned"
 }
 
+# find_unreleased_tag PR: set unreleased_tag to the tag that merging PR
+# releases when that release does not exist yet, and to empty otherwise,
+# after a warning when PR has no tag. The tag is not printed, so that the
+# warning reaches the log.
+find_unreleased_tag() {
+  local pr=$1 tag release
+  unreleased_tag=""
+  tag=$(pr_tag "$pr")
+  if [[ -z $tag ]]; then
+    unversioned "$pr"
+    return 0
+  fi
+  release=$(published_release "$tag")
+  [[ -n $release ]] || unreleased_tag=$tag
+}
+
 # merged_here: print the pending release pull request that SHA merged into
 # BASE; empty when there is none. The pull requests of the commit are read
 # directly, so that a lagging index of labelled issues cannot hide it.
@@ -110,16 +124,12 @@ merged_here() {
 # check_release: due when SHA merged a pending release pull request whose
 # release does not exist yet.
 check_release() {
-  local pr tag release
+  local pr tag
   pr=$(merged_here)
   [[ -n $pr ]] || return 0
-  tag=$(pr_tag "$pr")
-  if [[ -z $tag ]]; then
-    unversioned "$pr"
-    return 0
-  fi
-  release=$(published_release "$tag")
-  [[ -z $release ]] || return 0
+  find_unreleased_tag "$pr"
+  tag=$unreleased_tag
+  [[ -n $tag ]] || return 0
   decide release
   note "release of $tag: this push merged $(describe "$pr")"
 }
@@ -163,14 +173,10 @@ check_pending_pr() {
 # check_unreleased PR: check a pending release pull request whose release
 # does not exist yet.
 check_unreleased() {
-  local pr=$1 tag release commit run age
-  tag=$(pr_tag "$pr")
-  if [[ -z $tag ]]; then
-    unversioned "$pr"
-    return 0
-  fi
-  release=$(published_release "$tag")
-  [[ -z $release ]] || return 0
+  local pr=$1 tag commit run age
+  find_unreleased_tag "$pr"
+  tag=$unreleased_tag
+  [[ -n $tag ]] || return 0
   commit=$(jq -r .merge_commit_sha <<<"$pr")
   run=$(commit_run "$workflow" "$BASE" "$commit")
   [[ -n $run ]] || unpublishable "$pr" "$tag" "its merge commit has no push run of this workflow"

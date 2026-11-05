@@ -5,10 +5,12 @@ set -euo pipefail
 shopt -s inherit_errexit
 : "${REPO:?}" "${OWNER:?}" "${BASE:?}" "${WORKFLOW:?}"
 lib=$(dirname "$0")/../lib
+# shellcheck source=../lib/github/pulls.sh
+source "$lib/github/pulls.sh"
 # shellcheck source=../lib/report.sh
 source "$lib/report.sh"
 
-head=release-please--branches--$BASE
+head=$(release_head "$BASE")
 number=$(gh api "repos/$REPO/pulls?state=open&base=$BASE&head=$OWNER:$head" \
   --jq '.[0].number // empty')
 if [[ -z $number ]]; then

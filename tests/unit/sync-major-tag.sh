@@ -94,3 +94,9 @@ export FAIL_ON="POST repos/$REPO/git/refs 422"
 run "sync-major-tag: creating the tag fails when it appeared meanwhile" fail "$script"
 expect message "HTTP 422"
 finish
+
+sync_setup 1.10
+run "sync-major-tag: version not X.Y.Z fails" fail "$script"
+expect message "the root version must be X.Y.Z, not '1.10'"
+expect no-calls
+finish

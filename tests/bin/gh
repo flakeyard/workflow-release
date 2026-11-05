@@ -10,9 +10,10 @@
 # Other methods and "gh workflow run" are appended to $CALLS and succeed,
 # unless "<METHOD> <PATH> [STATUS]" is listed in $FAIL_ON (one per line), which
 # fails with HTTP STATUS, 502 by default.
+# shellcheck source-path=SCRIPTDIR
 set -euo pipefail
-
-key() { echo "${1//[\/?&=]/_}"; }
+# shellcheck source=../lib/fixtures/responses.sh
+source "$(dirname "$0")/../lib/fixtures/responses.sh"
 
 # fail STATUS [MESSAGE]: fail like gh does on an HTTP error.
 fail() {
@@ -92,7 +93,7 @@ if [[ $method != GET ]]; then
   exit 0
 fi
 
-file=$FIXTURES/$(key "$path")
+file=$(fixture_file "$path")
 [[ -f $file ]] || fail 404 "Not Found"
 grep -q 'HTTP 500' "$file" && fail 500 "Server Error"
 

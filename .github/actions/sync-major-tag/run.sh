@@ -12,11 +12,9 @@ source "$lib/manifest.sh"
 # shellcheck source=../lib/report.sh
 source "$lib/report.sh"
 
-readonly MAJOR_VERSION='^(0|[1-9][0-9]*)$'
-
 version=$(root_version "$SHA")
+check_release_version "$version"
 major=${version%%.*}
-[[ $major =~ $MAJOR_VERSION ]] || fail "unexpected version $version in $MANIFEST"
 
 change=$(major_tag_change "$major")
 read -r change latest target <<<"$change"
@@ -32,5 +30,5 @@ case $change in
     gh api --silent -X PATCH "repos/$REPO/git/refs/tags/v$major" -f sha="$target" -F force=true
     summary "moved v$major to $latest"
     ;;
-  *) echo "::warning::v$major not moved: $latest is $change of v$major" ;;
+  *) warning "v$major not moved: $latest is $change of v$major" ;;
 esac

@@ -10,6 +10,8 @@ shopt -s inherit_errexit
 lib=$(dirname "$0")/../lib
 # shellcheck source=../lib/app-key.sh
 source "$lib/app-key.sh"
+# shellcheck source=../lib/report.sh
+source "$lib/report.sh"
 
 readonly MAINTENANCE_BRANCH='^refs/heads/release/v[1-9][0-9]*$'
 readonly ZERO_BRANCH=refs/heads/release/v0
@@ -25,12 +27,11 @@ is_release_branch() {
 }
 
 if [[ $EVENT != push ]]; then
-  echo "::error::the release workflow runs only on push events, not $EVENT"
-  exit 1
+  fail "the release workflow runs only on push events, not $EVENT"
 fi
 : "${DEFAULT_BRANCH:?}"
 if is_zero_branch; then
-  echo "::notice::releases 0.y.z are made only on $DEFAULT_BRANCH; nothing to do on release/v0"
+  notice "releases 0.y.z are made only on $DEFAULT_BRANCH; nothing to do on release/v0"
   echo "skip=true" >>"$GITHUB_OUTPUT"
   exit 0
 fi
@@ -38,6 +39,5 @@ fi
 # token action checks the key there.
 if [[ $KEY_VISIBLE == true ]]; then check_app_key "$CLIENT_ID" "$HAS_KEY"; fi
 if ! is_release_branch; then
-  echo "::error::releases run only on $DEFAULT_BRANCH and release/vN with N >= 1, not $REF"
-  exit 1
+  fail "releases run only on $DEFAULT_BRANCH and release/vN with N >= 1, not $REF"
 fi

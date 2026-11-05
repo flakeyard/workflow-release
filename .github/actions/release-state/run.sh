@@ -85,10 +85,10 @@ write_elsewhere() {
 report_elsewhere() {
   local tag=$1 commit=$2
   if created_in_this_run "$tag"; then
-    echo "::notice::$tag was released at $commit, not at $SHA; the run of $commit publishes it"
+    notice "$tag was released at $commit, not at $SHA; the run of $commit publishes it"
     write_elsewhere "$tag" "$commit" true
   elif [[ ${RELEASE_FAILED:-} == true ]]; then
-    echo "::notice::$tag exists at $commit; if this run released it before" \
+    notice "$tag exists at $commit; if this run released it before" \
       "release-please failed, the run of $commit publishes it"
     write_elsewhere "$tag" "$commit" false
   fi
@@ -126,7 +126,7 @@ tag=v$version
 commit=""
 
 if is_branch_creation; then
-  echo "::notice::branch created at $SHA; not a new release"
+  notice "branch created at $SHA; not a new release"
 else
   commit=$(release_tag_commit "$tag")
   if [[ -z $commit ]] && created_in_this_run "$tag"; then
