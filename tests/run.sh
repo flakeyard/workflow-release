@@ -21,6 +21,10 @@ source "$root/tests/lib/fixtures/manifest.sh"
 source "$root/tests/lib/fixtures/tags.sh"
 # shellcheck source=lib/fixtures/releases.sh
 source "$root/tests/lib/fixtures/releases.sh"
+# shellcheck source=lib/fixtures/pulls.sh
+source "$root/tests/lib/fixtures/pulls.sh"
+# shellcheck source=lib/fixtures/runs.sh
+source "$root/tests/lib/fixtures/runs.sh"
 # shellcheck source=lib/workflow.sh
 source "$root/tests/lib/workflow.sh"
 

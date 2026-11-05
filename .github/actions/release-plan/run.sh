@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Decides whether the job that releases with the key is due on this push of
-# SHA to BASE, and writes due and reason to GITHUB_OUTPUT:
+# SHA to BASE, writes due to GITHUB_OUTPUT and why to the job summary:
 # - release: SHA merged a release pull request that is still pending;
 # - takeover: an earlier one is pending, and the run of its merge commit
 #   completed without releasing it;
@@ -282,12 +282,9 @@ request_state() {
   fi
 }
 
-# write_decision: write the outputs and the end of the summary.
+# write_decision: write the output due and the end of the summary.
 write_decision() {
-  {
-    echo "due=$due"
-    echo "reason=$reason"
-  } >>"$GITHUB_OUTPUT"
+  echo "due=$due" >>"$GITHUB_OUTPUT"
   local decision="No release due."
   if [[ $due == true ]]; then decision="Due: $reason."; fi
   summary ""
