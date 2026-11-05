@@ -5,31 +5,15 @@ script=release-plan/run.sh
 # This run was created a minute before now; the merge run of a pending pull
 # request a day and a half before, unless a test says otherwise.
 now=2026-11-02T12:00:00Z this_run_created=2026-11-02T11:59:00Z
-merged=2026-11-01T00:00:00Z
+merged=$MERGED_AT
 # More than 29 days before now, and exactly 28 days before now.
 too_old=2026-10-03T11:00:00Z still_young=2026-10-05T12:00:00Z
-head=release-please--branches--main
+head=$(release_branch main)
 
-# commit_runs_path COMMIT: the push runs of workflow 5 at COMMIT on main.
-commit_runs_path() {
-  printf '%s\n' "repos/$REPO/actions/workflows/5/runs?branch=main&event=push&head_sha=$1&per_page=1"
-}
 branch_runs_path="repos/o/r/actions/workflows/5/runs?branch=main&event=push&per_page=20"
 # The first page of the window, newest created first like release-please
 # reads it; ${window_path%1}N is page N.
 window_path="repos/o/r/pulls?state=closed&base=main&sort=created&direction=desc&per_page=100&page=1"
-pending_path="repos/o/r/issues?state=closed&labels=autorelease:%20pending&per_page=100"
-
-# pr_json NUMBER COMMIT [HEAD] [BASE] [MERGED_AT] [TITLE]: a merged pull
-# request labelled pending.
-pr_json() {
-  jq -nc --argjson number "$1" --arg commit "$2" --arg head "${3:-$head}" \
-    --arg base "${4:-main}" --arg merged_at "${5:-$merged}" \
-    --arg title "${6:-chore(main): release}" '{
-      number: $number, title: $title, head: {ref: $head}, base: {ref: $base},
-      merge_commit_sha: $commit, merged_at: $merged_at,
-      labels: [{name: "autorelease: pending"}]}'
-}
 
 # pending PR...: these pull requests are pending, in release-please's window,
 # and release 1.3.0 at their merge commits.
@@ -39,10 +23,10 @@ pending() {
     number=$(jq .number <<<"$pr")
     commit=$(jq -r .merge_commit_sha <<<"$pr")
     numbers+=("$number")
-    fixture "repos/$REPO/pulls/$number" "$pr"
+    pull "$pr"
     manifest 1.3.0 "$commit"
   done
-  fixture "$pending_path" "$(jq -nc '[$ARGS.positional[] | {number: tonumber,
+  pending_prs "$(jq -nc '[$ARGS.positional[] | {number: tonumber,
     pull_request: {merged_at: "x"}}]' --args "${numbers[@]}")"
   fixture "$window_path" "$(jq -nc '[$ARGS.positional[] | {number: tonumber,
     merged_at: "x"}]' --args "${numbers[@]}")"
@@ -52,7 +36,7 @@ pending() {
 # nobody reviewed it.
 merge_run() {
   local commit=$1 status=$2 created=${3:-$merged}
-  fixture "$(commit_runs_path "$commit")" "{\"workflow_runs\":[{\"id\":77,
+  fixture "$(commit_runs_path main "$commit")" "{\"workflow_runs\":[{\"id\":77,
     \"status\":\"$status\",\"created_at\":\"$created\",\"html_url\":\"https://x/runs/77\"}]}"
   reviews 77
 }
@@ -74,7 +58,7 @@ plan_setup() {
   fixture "repos/$REPO/actions/runs/100" \
     "{\"id\":100,\"workflow_id\":5,\"created_at\":\"$this_run_created\"}"
   fixture "repos/$REPO/commits/$SHA/pulls" '[]'
-  fixture "$pending_path" '[]'
+  pending_prs '[]'
   manifest 1.2.3
 }
 
@@ -245,7 +229,7 @@ finish
 
 for environment in release ""; do
   takeover_setup ENVIRONMENT="$environment"
-  fixture "$(commit_runs_path m5)" '{"workflow_runs":[]}'
+  fixture "$(commit_runs_path main m5)" '{"workflow_runs":[]}'
   run "release-plan: the merge commit has no run (environment '$environment')" fail "$script"
   expect message "the release of #5 at m5 can never be published from the run of its commit: its merge commit has no push run of this workflow; abandon v1.3.0 (README, Abandon)"
   expect output due ""
@@ -399,9 +383,9 @@ api_error_case() {
   finish
 }
 for path in "repos/o/r/actions/runs/100" "repos/o/r/commits/aaa/pulls" \
-  "$pending_path" "repos/o/r/pulls/5" "$window_path" \
+  "$(pending_path)" "repos/o/r/pulls/5" "$window_path" \
   "repos/o/r/contents/.release-please-manifest.json?ref=m5" \
-  "repos/o/r/releases/tags/v1.3.0" "$(commit_runs_path m5)" \
+  "repos/o/r/releases/tags/v1.3.0" "$(commit_runs_path main m5)" \
   "repos/o/r/actions/runs/77/approvals"; do
   api_error_case takeover_setup "$path"
 done

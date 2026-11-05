@@ -3,26 +3,13 @@
 
 script=reconcile-pending-prs/run.sh
 
-# pending_prs BODY: the closed pull requests labelled pending.
-pending_prs() {
-  fixture "repos/$REPO/issues?state=closed&labels=autorelease:%20pending&per_page=100" "$1"
-}
-
 # pr NUMBER BASE VERSION [HEAD]: a pull request from HEAD, release-please's
 # branch by default, merged into BASE as commit mNUMBER, where the manifest has
 # VERSION.
 pr() {
   local number=$1 base=$2 version=$3
-  pr_json "$number" "$base" "${4:-release-please--branches--$base}"
+  pull "$(pr_json "$number" "m$number" "${4:-}" "$base")"
   manifest "$version" "m$number"
-}
-
-# pr_json NUMBER BASE HEAD: the pull request without its manifest.
-pr_json() {
-  local number=$1 base=$2 head=$3
-  fixture "repos/$REPO/pulls/$number" "$(jq -nc --argjson number "$number" \
-    --arg base "$base" --arg head "$head" \
-    '{number: $number, base: {ref: $base}, head: {ref: $head}, merge_commit_sha: "m\($number)"}')"
 }
 
 # reconcile_setup: pending pull requests into main and release/v1; #8 was
@@ -117,7 +104,7 @@ finish
 setup
 export BASE=main
 pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
-pr_json 3 main release-please--branches--main
+pull "$(pr_json 3 m3)"
 run "reconcile: no manifest at the merge commit" ok "$script"
 expect no-calls
 finish
@@ -130,7 +117,7 @@ no_version_case() {
   setup
   export BASE=main
   pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
-  pr_json 3 main release-please--branches--main
+  pull "$(pr_json 3 m3)"
   file_fixture "$MANIFEST" m3 "$content"
   [[ -z $tag ]] || release "$tag"
   run "reconcile: root version $name" ok "$script"
@@ -146,7 +133,7 @@ no_version_case "in a manifest that is no JSON" 'not json'
 setup
 export BASE=main
 pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
-pr_json 3 main release-please--branches--main
+pull "$(pr_json 3 m3)"
 fixture "repos/$REPO/contents/$MANIFEST?ref=m3" "HTTP 500"
 run "reconcile: API error reading the manifest fails" fail "$script"
 expect message "HTTP 500"

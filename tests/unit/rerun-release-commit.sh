@@ -5,11 +5,6 @@ script=rerun-release-commit/run.sh
 # When this run first started, and a release published before and after it.
 started=2026-10-31T12:00:00Z before=2026-10-31T11:00:00Z after=2026-10-31T12:01:00Z
 
-# runs_path: the push runs of workflow 5 at COMMIT on BRANCH.
-runs_path() {
-  printf '%s\n' "repos/$REPO/actions/workflows/5/runs?branch=$BRANCH&event=push&head_sha=$COMMIT&per_page=1"
-}
-
 # commit_run_fixture STATUS: the run 77 of COMMIT has STATUS.
 commit_run_fixture() {
   local status=$1
@@ -24,7 +19,7 @@ rerun_setup() {
   apply "$@"
   fixture "repos/$REPO/actions/runs/100" '{"id":100,"workflow_id":5}'
   fixture "repos/$REPO/actions/runs/100/attempts/1" "{\"run_started_at\":\"$started\"}"
-  fixture "$(runs_path)" '{"workflow_runs":[{"id":77,"html_url":"https://x/runs/77"}]}'
+  fixture "$(commit_runs_path "$BRANCH" "$COMMIT")" '{"workflow_runs":[{"id":77,"html_url":"https://x/runs/77"}]}'
   commit_run_fixture completed
 }
 
@@ -60,7 +55,7 @@ expect no-calls
 finish
 
 rerun_setup
-fixture "$(runs_path)" '{"workflow_runs":[]}'
+fixture "$(commit_runs_path "$BRANCH" "$COMMIT")" '{"workflow_runs":[]}'
 run "rerun-release-commit: no run of the release commit fails" fail "$script"
 expect message "no push run of this workflow at bbb on main: v1.2.3 is released but the run of its commit cannot publish it; cut the next patch release"
 expect no-message abandon
