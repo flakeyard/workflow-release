@@ -410,11 +410,9 @@ graph: only `Release` and, with the App, `Release pull request` reach the
 environment and the key, `Release` runs only when it is due or there is no
 environment, and no job with an environment runs code of the repository; the
 others check that the repository's own workflows call workflow-check and
-workflow-scorecard as
-[FY-0031](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0031-check-pull-requests-and-pushes-with-workflow-check.md)
-asks. They read the workflows with mikefarah `yq` v4, which GitHub-hosted
-runners have, and fail without it; locally, run
-`nix shell nixpkgs#yq-go -c tests/run.sh`.
+workflow-scorecard as [FY-0034][fy-0034] asks. They read the workflows with
+mikefarah `yq` v4, which GitHub-hosted runners have, and fail without it;
+locally, run `nix shell nixpkgs#yq-go -c tests/run.sh`.
 
 The repository checks itself with [`test.yaml`](.github/workflows/test.yaml):
 its job `unit` runs `tests/run.sh`, and the job `check` calls
@@ -431,8 +429,7 @@ design follows
 [FY-0007](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0007-branching-and-releases.md),
 [FY-0028](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0028-supply-chain.md),
 [FY-0030](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0030-actions-workflows-and-release-bot.md)
-and
-[FY-0031](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0031-check-pull-requests-and-pushes-with-workflow-check.md).
+and [FY-0034][fy-0034].
 
 ## Bootstrap
 
@@ -446,3 +443,6 @@ some checks of this repository are not released yet. Until they are:
 ## License
 
 [MIT](LICENSE).
+
+[fy-0034]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0034-check-every-repository-with-workflow-check.md

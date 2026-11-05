@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2016 # jq expressions, not expansions.
 # Static tests of the CI of this repository: it runs the unit tests and calls
-# workflow-check as the caller contract asks of every repository (FY-0031).
+# workflow-check as the caller contract asks of every repository (FY-0034).
 
 : "${root:?}"
 

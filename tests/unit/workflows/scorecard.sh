@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2016 # jq expressions, not expansions.
 # Static tests of the Scorecard workflow of this repository: it calls
-# workflow-scorecard as FY-0031 asks of every repository.
+# workflow-scorecard as FY-0034 asks of every repository.
 
 : "${root:?}"
 
