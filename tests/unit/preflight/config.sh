@@ -49,13 +49,13 @@ file_fixture "$REPO" "$MANIFEST" "$SHA" '{"lib": "1.0.0"}'
 run "preflight config: manifest without root" fail "$script"
 finish
 
-setup
+start_test
 manifest 0.0.0
 run "preflight config: a missing configuration is named" fail "$script"
 expect message "$CONFIG does not exist at $SHA"
 finish
 
-setup
+start_test
 file_fixture "$REPO" "$CONFIG" "$SHA" "{$ok}"
 run "preflight config: a missing manifest is named" fail "$script"
 expect message "$MANIFEST does not exist at $SHA"
