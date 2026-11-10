@@ -387,6 +387,16 @@ run "release-plan: a takeover is not checked for a repair" ok "$script"
 expect_due true takeover
 finish
 
+# A failure after a finding still writes the finding as a notice.
+plan_setup MOVE_MAJOR_TAG=true
+pending "$(pr_json 5 m5)"
+merge_run m5 in_progress
+manifest 1.2
+run "release-plan: a failure writes the findings before it" fail "$script"
+expect message "the root version must be X.Y.Z, not '1.2'"
+expect message "::notice::not due: https://x/runs/77, the run of #5"
+finish
+
 plan_setup MOVE_MAJOR_TAG=true
 rm -- "$(fixture_file "repos/$REPO/contents/$MANIFEST?ref=$SHA")"
 run "release-plan: a missing manifest is named" fail "$script"
