@@ -1,9 +1,9 @@
 # shellcheck shell=bash
 # The run that every test starts with and its parameters, on top of case.sh
 # of action-shell-lib. Source this file after it; it expects root, the
-# repository's directory, and library, the directory of the library.
+# repository's directory, and SHELL_LIB, the directory of the library.
 
-: "${root:?}" "${library:?}"
+: "${root:?}" "${SHELL_LIB:?}"
 # The repository, commit, ref and files of the run of every test; the tests
 # use them in the paths of fixtures too.
 readonly REPO=o/r SHA=aaa REF=refs/heads/main
@@ -19,7 +19,7 @@ start_test() {
   setup
   params=()
   apply PATH="$root/tests/bin:$TESTING_BIN:$HOST_PATH" TESTING_BIN="$TESTING_BIN" \
-    SHELL_LIB="$library" REPO="$REPO" SHA="$SHA" REF="$REF" \
+    SHELL_LIB="$SHELL_LIB" REPO="$REPO" SHA="$SHA" REF="$REF" \
     MANIFEST="$MANIFEST" CONFIG="$CONFIG"
 }
 

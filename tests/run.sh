@@ -13,15 +13,15 @@ root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 source "$root/tests/lib/shell-lib.sh"
 # The harness of the library; not its public API, used only by tests.
 # shellcheck source=/dev/null
-source "$library/internal/testing/case.sh"
+source "$SHELL_LIB/internal/testing/case.sh"
 # shellcheck source=/dev/null
-source "$library/internal/testing/checks.sh"
+source "$SHELL_LIB/internal/testing/checks.sh"
 # shellcheck source=/dev/null
-source "$library/internal/testing/fixtures.sh"
+source "$SHELL_LIB/internal/testing/fixtures.sh"
 # shellcheck source=/dev/null
-source "$library/internal/testing/yaml.sh"
+source "$SHELL_LIB/internal/testing/yaml.sh"
 # shellcheck source=/dev/null
-source "$library/internal/testing/consumer/action.sh"
+source "$SHELL_LIB/internal/testing/consumer/action.sh"
 # The scripts and the YAML files are paths in the repository.
 # shellcheck disable=SC2034 # read by internal/testing
 code_root=$root
