@@ -39,7 +39,7 @@ readonly EARLIER_RUNS=20
 RELEASE_HEAD=$(release_head "$BASE")
 readonly RELEASE_HEAD
 
-due=false reason=""
+due=false reason="" findings=()
 
 # decide REASON: the job that releases is due; the first reason is reported.
 decide() {
@@ -48,11 +48,20 @@ decide() {
   due=true
 }
 
-# note TEXT: report a finding of the plan in the job summary and as a notice;
-# a job summary cannot be read through the API.
+# note TEXT: report a finding of the plan in the job summary, and later as a
+# notice; a job summary cannot be read through the API.
 note() {
   summary "- $*"
-  notice "$*"
+  findings+=("$*")
+}
+
+# write_findings: write the findings of note as notices. A step keeps only
+# ANNOTATIONS_PER_KIND notices, so they come after the decision, which the
+# limit must not hide.
+write_findings() {
+  local finding
+  for finding in "${findings[@]}"; do notice "$finding"; done
+  findings=()
 }
 
 # is_branch_creation: the push created a branch, such as release/vN at a
@@ -201,6 +210,7 @@ unpublishable() {
   local pr=$1 tag=$2 why=$3 number commit
   number=$(jq -r .number <<<"$pr")
   commit=$(jq -r .merge_commit_sha <<<"$pr")
+  write_findings
   fail "the release of #$number at $commit can never be published from the run of its commit: $why; abandon $tag (README, Abandon)"
 }
 
@@ -291,6 +301,7 @@ write_decision() {
   summary ""
   summary "$decision"
   notice "$decision"
+  write_findings
 }
 
 summary "Release plan of $SHA on $BASE. This is a hint, not evidence:" \
@@ -309,5 +320,5 @@ check_release
 if [[ $due == false ]]; then check_pending; fi
 if [[ $due == false && $MOVE_MAJOR_TAG == true ]]; then check_repair; fi
 write_decision
-# Many pending pull requests can reach the limit of annotations of a step.
+# Many findings or warnings can reach the limit of annotations of a step.
 flush

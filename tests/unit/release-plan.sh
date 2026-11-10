@@ -215,6 +215,19 @@ for status in queued in_progress waiting pending requested; do
   finish
 done
 
+# Twelve pending pull requests whose runs are still running: twelve findings,
+# more than a step keeps as notices.
+plan_setup
+prs=()
+for number in {11..22}; do prs+=("$(pr_json "$number" "m$number")"); done
+pending "${prs[@]}"
+for number in {11..22}; do merge_run "m$number" in_progress; done
+run "release-plan: the limit of notices does not hide the decision" ok "$script"
+expect_due false
+expect_first_notice "No release due."
+expect message "::notice::4 more notices are not shown here."
+finish
+
 takeover_setup
 run "release-plan: the merge run completed without a review" ok "$script"
 expect_due true takeover

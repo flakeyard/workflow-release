@@ -53,3 +53,11 @@ order() {
   b=$(grep -nF -- "$2" "$CALLS" | head -n 1 | cut -d: -f1)
   [[ -n $a && -n $b && $a -lt $b ]] || report "'$1' not before '$2': $(paste -sd';' "$CALLS")"
 }
+
+# expect_first_notice TEXT: the first notice of the last run is TEXT.
+expect_first_notice() {
+  local expected=$1 first
+  [[ -n $current ]] || return 0
+  first=$(grep -m 1 '^::notice::' "$work/stdout")
+  [[ $first == "::notice::$expected" ]] || report "the first notice is '$first', expected '$expected'"
+}
