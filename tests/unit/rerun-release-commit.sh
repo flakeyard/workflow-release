@@ -1,32 +1,42 @@
 # shellcheck shell=bash
 # Tests of rerun-release-commit.
 
-script=rerun-release-commit/run.sh
+script=.github/actions/rerun-release-commit/run.sh
 # When this run first started, and a release published before and after it.
 started=2026-10-31T12:00:00Z before=2026-10-31T11:00:00Z after=2026-10-31T12:01:00Z
 
-# commit_run_fixture STATUS: the run 77 of COMMIT has STATUS.
+# The release that this run created, and its commit.
+tag=v1.2.3 commit=bbb
+
+# commit_run_fixture STATUS: the run 77 of the release commit has STATUS.
 commit_run_fixture() {
   local status=$1
   fixture "repos/$REPO/actions/runs/77" "{\"id\":77,\"status\":\"$status\"}"
 }
 
-# rerun_setup [NAME=VALUE...]: this run 100 of workflow 5 created v1.2.3 at
-# bbb, whose completed run is 77; the values override that.
+# commit_runs_fixture BRANCH: run 77 is the push run of the release commit on
+# BRANCH.
+commit_runs_fixture() {
+  local branch=$1
+  fixture "$(commit_runs_path "$branch" "$commit")" '{"workflow_runs":[{"id":77,"html_url":"https://x/runs/77"}]}'
+}
+
+# rerun_setup [NAME=VALUE...]: this run 100 of workflow 5 on main created the
+# release, whose completed run is 77; the values override that.
 rerun_setup() {
-  setup
-  export RUN_ID=100 BRANCH=main TAG=v1.2.3 COMMIT=bbb CREATED=true
+  start_test
+  apply RUN_ID=100 BRANCH=main TAG="$tag" COMMIT="$commit" CREATED=true
   apply "$@"
   fixture "repos/$REPO/actions/runs/100" '{"id":100,"workflow_id":5}'
   fixture "repos/$REPO/actions/runs/100/attempts/1" "{\"run_started_at\":\"$started\"}"
-  fixture "$(commit_runs_path "$BRANCH" "$COMMIT")" '{"workflow_runs":[{"id":77,"html_url":"https://x/runs/77"}]}'
+  commit_runs_fixture main
   commit_run_fixture completed
 }
 
-# release_published_at TIME: the release of TAG was published at TIME.
+# release_published_at TIME: the release was published at TIME.
 release_published_at() {
   local time=$1
-  fixture "repos/$REPO/releases/tags/$TAG" "{\"draft\":false,\"published_at\":\"$time\"}"
+  fixture "repos/$REPO/releases/tags/$tag" "{\"draft\":false,\"published_at\":\"$time\"}"
 }
 
 rerun_setup
@@ -36,6 +46,7 @@ expect message "::notice::reran https://x/runs/77, the run of bbb, to publish v1
 finish
 
 rerun_setup BRANCH=release/v1
+commit_runs_fixture release/v1
 run "rerun-release-commit: release branch" ok "$script"
 expect call "POST repos/$REPO/actions/runs/77/rerun"
 finish
@@ -55,7 +66,7 @@ expect no-calls
 finish
 
 rerun_setup
-fixture "$(commit_runs_path "$BRANCH" "$COMMIT")" '{"workflow_runs":[]}'
+fixture "$(commit_runs_path main "$commit")" '{"workflow_runs":[]}'
 run "rerun-release-commit: no run of the release commit fails" fail "$script"
 expect message "no push run of this workflow at bbb on main: v1.2.3 is released but the run of its commit cannot publish it; cut the next patch release"
 expect no-message abandon

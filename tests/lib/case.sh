@@ -1,64 +1,43 @@
 # shellcheck shell=bash
-# The life of one test: its fixtures directory, environment, parameters and
-# count. Source this file; it expects root, the repository's directory, and
-# library, the directory of action-shell-lib.
+# The run that every test starts with and its parameters, on top of case.sh
+# of action-shell-lib. Source this file after it; it expects root, the
+# repository's directory, and library, the directory of the library.
 
 : "${root:?}" "${library:?}"
-failed=0 passed=0 current=""
-# Test parameters given as lower-case name=value to apply.
+# The repository, commit, ref and files of the run of every test; the tests
+# use them in the paths of fixtures too.
+readonly REPO=o/r SHA=aaa REF=refs/heads/main
+readonly MANIFEST=.release-please-manifest.json CONFIG=release-please-config.json
+# A parameter of a test, given as lower-case name=value to configure.
+readonly PARAM_FORM='^([a-z][a-z0-9_]*)=(.*)$'
 declare -A params
 
-# setup: fresh fixtures, calls, outputs and environment for one test.
-setup() {
-  work=$(mktemp -d)
-  export FIXTURES=$work/fixtures CALLS=$work/calls GITHUB_OUTPUT=$work/output
-  export GITHUB_STEP_SUMMARY=$work/summary SHELL_LIB=$library
-  # The stubs of this repository first, then the date stub of the library.
-  export PATH=$root/tests/bin:$library/internal/testing/bin:$PATH
-  mkdir -p "$FIXTURES"
-  : >"$CALLS"
-  : >"$GITHUB_OUTPUT"
-  export REPO=o/r SHA=aaa REF=refs/heads/main
-  export MANIFEST=.release-please-manifest.json CONFIG=release-please-config.json
-  unset NEW_BRANCH CREATED CREATED_TAG RELEASE_FAILED CLIENT_ID HAS_KEY EVENT \
-    DEFAULT_BRANCH BASE OWNER WORKFLOW FAIL_ON RUN_ID BRANCH TAG COMMIT \
-    ENVIRONMENT MOVE_MAJOR_TAG KEY_VISIBLE
+# start_test: setup for one test of a script: the run above, the library in
+# SHELL_LIB, and the stubs of tests/bin before those of the library, which
+# they call in TESTING_BIN.
+start_test() {
+  setup
   params=()
+  apply PATH="$root/tests/bin:$TESTING_BIN:$HOST_PATH" TESTING_BIN="$TESTING_BIN" \
+    SHELL_LIB="$library" REPO="$REPO" SHA="$SHA" REF="$REF" \
+    MANIFEST="$MANIFEST" CONFIG="$CONFIG"
 }
 
-# apply NAME=VALUE...: override defaults of a test. Upper-case names are
-# exported to the script; lower-case ones are test parameters, read by param.
-apply() {
+# configure NAME=VALUE...: apply the variables of the script; lower-case
+# names are parameters of the test instead, read by param.
+configure() {
   local pair
   for pair; do
-    if [[ $pair =~ ^[A-Z][A-Z0-9_]*= ]]; then
-      declare -gx -- "$pair"
-    elif [[ $pair =~ ^([a-z][a-z0-9_]*)=(.*)$ ]]; then
+    if [[ $pair =~ $PARAM_FORM ]]; then
       params[${BASH_REMATCH[1]}]=${BASH_REMATCH[2]}
     else
-      echo "apply: not NAME=VALUE: $pair" >&2
-      exit 2
+      apply "$pair"
     fi
   done
 }
 
-# param NAME [DEFAULT]: print a test parameter given to apply.
+# param NAME [DEFAULT]: print a parameter of the test given to configure.
 param() {
   local name=$1 default=${2:-}
   printf '%s\n' "${params[$name]-$default}"
-}
-
-# report MESSAGE: fail the current test.
-report() {
-  [[ -n $current ]] || return 0
-  echo "FAIL $current: $1"
-  failed=$((failed + 1))
-  current=""
-}
-
-# finish: count the current test and remove its files.
-finish() {
-  if [[ -n $current ]]; then passed=$((passed + 1)); fi
-  current=""
-  rm -rf "$work"
 }

@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of release-plan.
 
-script=release-plan/run.sh
+script=.github/actions/release-plan/run.sh
 # This run was created a minute before now; the merge run of a pending pull
 # request a day and a half before, unless a test says otherwise.
 now=2026-11-02T12:00:00Z this_run_created=2026-11-02T11:59:00Z
@@ -52,8 +52,8 @@ reviews() {
 # plan_setup [NAME=VALUE...]: run 100 of workflow 5 on main, gated by the
 # environment release, with nothing pending; the values override that.
 plan_setup() {
-  setup
-  export BASE=main RUN_ID=100 ENVIRONMENT=release MOVE_MAJOR_TAG=false
+  start_test
+  apply BASE=main RUN_ID=100 ENVIRONMENT=release MOVE_MAJOR_TAG=false
   fixed_time "$now"
   apply "$@"
   fixture "repos/$REPO/actions/runs/100" \
@@ -313,8 +313,7 @@ fixture "repos/$REPO/commits/$SHA/pulls" "[$(pr_json 4 "$SHA" "$head" main "$mer
 manifest 1.3.0
 run "release-plan: a title is printed as code" ok "$script"
 expect_due true release
-grep -qF "#4 \`release [x](https://e) **b** 'c'\`" "$GITHUB_STEP_SUMMARY" \
-  || report "title not printed as code: $(cat "$GITHUB_STEP_SUMMARY")"
+expect summary "#4 \`release [x](https://e) **b** 'c'\`"
 finish
 
 repair_setup

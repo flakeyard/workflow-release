@@ -1,14 +1,14 @@
 # shellcheck shell=bash
 # Tests of dispatch-checks.
 
-script=dispatch-checks/run.sh
+script=.github/actions/dispatch-checks/run.sh
 
 # dispatch_setup BASE BODY: the open release pull requests into BASE are BODY.
 dispatch_setup() {
   local base=$1 body=$2
-  setup
-  export BASE=$base OWNER=o WORKFLOW=check.yaml
-  fixture "repos/$REPO/pulls?state=open&base=$base&head=$OWNER:release-please--branches--$base" "$body"
+  start_test
+  apply BASE="$base" OWNER=o WORKFLOW=check.yaml
+  fixture "repos/$REPO/pulls?state=open&base=$base&head=o:release-please--branches--$base" "$body"
 }
 
 dispatch_setup main '[{"number":9}]'

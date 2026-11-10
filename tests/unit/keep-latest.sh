@@ -1,11 +1,11 @@
 # shellcheck shell=bash
 # Tests of keep-latest.
 
-script=keep-latest/run.sh
+script=.github/actions/keep-latest/run.sh
 
 # latest_setup: v2.0.0 is the newest release that is not a pre-release.
 latest_setup() {
-  setup
+  start_test
   releases '[
     {"tag_name":"v2.0.0","id":20,"draft":false,"prerelease":false},
     {"tag_name":"v1.4.1","id":141,"draft":false,"prerelease":false},
@@ -30,7 +30,7 @@ run "keep-latest: no latest release yet" ok "$script"
 expect call "PATCH repos/$REPO/releases/20 make_latest=true"
 finish
 
-setup
+start_test
 releases '[{"tag_name":"v0.1.0","id":1,"draft":false,"prerelease":true}]'
 run "keep-latest: only pre-releases" ok "$script"
 expect no-calls
@@ -43,7 +43,7 @@ finish
 
 # release-please never writes a leading zero, which arithmetic would read as
 # octal.
-setup
+start_test
 releases '[
   {"tag_name":"v1.4.1","id":141,"draft":false,"prerelease":false},
   {"tag_name":"v02.0.0","id":20,"draft":false,"prerelease":false}
