@@ -52,3 +52,13 @@ fixture "repos/$REPO/releases/latest" '{"id":141}'
 run "keep-latest: a tag with a leading zero is no release" ok "$script"
 expect no-calls
 finish
+
+# Variables of the environment with the names of the constants of
+# lib/version.sh, which an earlier step can set, do not change the rule.
+latest_setup
+export RELEASE_VERSION=x VERSION_NUMBER=x RELEASE_TAG=x
+fixture "repos/$REPO/releases/latest" '{"id":141}'
+run "keep-latest: the environment does not replace the release rule" ok "$script"
+expect call "PATCH repos/$REPO/releases/20 make_latest=true"
+unset RELEASE_VERSION VERSION_NUMBER RELEASE_TAG
+finish

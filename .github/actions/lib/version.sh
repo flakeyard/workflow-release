@@ -1,8 +1,10 @@
 # shellcheck shell=bash
 # Versions X.Y.Z of releases and their tags vX.Y.Z.
 
-# Several helpers source this file; its read-only constants are defined once.
-[[ ! -v RELEASE_VERSION ]] || return 0
+# Sourcing this file twice defines its read-only constants once. A variable of
+# the environment with the same name is not read-only, and the constant
+# replaces it.
+[[ $(declare -p RELEASE_VERSION 2>/dev/null) != "declare -r"* ]] || return 0
 
 # The root version of a release: X.Y.Z without leading zeros, which
 # arithmetic would read as octal and release-please never writes. The digits
