@@ -196,3 +196,8 @@ manifest 1.2.3
 fixture "repos/$REPO/git/ref/tags/v1.2.3" "HTTP 500"
 run "release-state: API error fails" fail "$script"
 finish
+
+setup
+run "release-state: a missing manifest is named" fail "$script"
+expect message "$MANIFEST does not exist at $SHA"
+finish

@@ -4,16 +4,18 @@
 
 # shellcheck source=/dev/null
 source "$SHELL_LIB/github/contents.sh"
+# shellcheck source=github/files.sh
+source "${BASH_SOURCE[0]%/*}/github/files.sh"
 # shellcheck source=/dev/null
 source "$SHELL_LIB/report.sh"
 # shellcheck source=version.sh
 source "${BASH_SOURCE[0]%/*}/version.sh"
 
 # root_version REF: print the version of the root package in MANIFEST at a
-# commit; empty when there is none.
+# commit; empty when there is none. Fails when there is no MANIFEST.
 root_version() {
   local ref=$1
-  file_at "$MANIFEST" "$ref" | jq -r '."." // empty'
+  required_file "$MANIFEST" "$ref" | jq -r '."." // empty'
 }
 
 # find_release_version REF: print the version of the root package in MANIFEST

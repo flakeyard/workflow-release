@@ -405,8 +405,8 @@ scripts source `report.sh`, which reports errors, warnings, notices and the job
 summary, and `github/api.sh` and `github/contents.sh`, which call the GitHub
 API, from the library, and the helpers of this repository in `lib`:
 `lib/github/` calls the GitHub API on top of the library (`optional.sh`,
-`tags.sh`, `releases.sh`, `pulls.sh`, `runs.sh`), `lib/version.sh` tells
-versions and tags of releases, `lib/manifest.sh` reads the release-please
+`files.sh`, `tags.sh`, `releases.sh`, `pulls.sh`, `runs.sh`), `lib/version.sh`
+tells versions and tags of releases, `lib/manifest.sh` reads the release-please
 manifest, `lib/app-key.sh` checks the App inputs, `lib/major-tag.sh` works out
 how `vX` has to change and `lib/clock.sh` measures ages. `tests/run.sh` tests
 them with the stubs in `tests/bin` and the fixtures and the `date` stub of the

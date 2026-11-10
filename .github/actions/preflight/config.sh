@@ -7,8 +7,8 @@ shopt -s inherit_errexit
 : "${SHELL_LIB:?}"
 : "${REPO:?}" "${SHA:?}" "${REF:?}" "${CONFIG:?}" "${MANIFEST:?}"
 lib=$(dirname "$0")/../lib
-# shellcheck source=/dev/null
-source "$SHELL_LIB/github/contents.sh"
+# shellcheck source=../lib/github/files.sh
+source "$lib/github/files.sh"
 # shellcheck source=../lib/manifest.sh
 source "$lib/manifest.sh"
 # shellcheck source=/dev/null
@@ -16,7 +16,7 @@ source "$SHELL_LIB/report.sh"
 
 readonly RELEASE_BRANCH='^refs/heads/release/v([0-9]+)$'
 
-config=$(file_at "$CONFIG" "$SHA")
+config=$(required_file "$CONFIG" "$SHA")
 problems=$(jq -r -f "$(dirname "$0")/config.jq" <<<"$config")
 if [[ -n $problems ]]; then
   while IFS= read -r line; do error "$line" "$CONFIG"; done <<<"$problems"

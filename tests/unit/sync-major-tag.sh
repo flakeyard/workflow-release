@@ -100,3 +100,8 @@ run "sync-major-tag: version not X.Y.Z fails" fail "$script"
 expect message "the root version must be X.Y.Z, not '1.10'"
 expect no-calls
 finish
+
+setup
+run "sync-major-tag: a missing manifest is named" fail "$script"
+expect message "$MANIFEST does not exist at $SHA"
+finish
