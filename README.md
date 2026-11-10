@@ -401,22 +401,27 @@ Each action runs its `run.sh`, or one script per check when it has several
 [action-shell-lib][action-shell-lib] once, pinned by commit, and passes its
 directory to the actions as the input `shell-lib`, which they give to their
 scripts as `SHELL_LIB`; the actions do not call the library themselves. The
-scripts source the helpers in `lib`: `lib/github/` calls the GitHub API
-(`api.sh`, `contents.sh`, `tags.sh`, `releases.sh`, `pulls.sh`, `runs.sh`),
-`lib/manifest.sh` reads the release-please manifest, `lib/app-key.sh` checks the
-App inputs, `lib/major-tag.sh` works out how `vX` has to change, `lib/clock.sh`
-measures ages and `lib/report.sh` reports errors, warnings, notices and the job
-summary. `tests/run.sh` tests them with the stubs in `tests/bin`; the suites in
-`tests/unit` mirror the actions and share the helpers in `tests/lib`.
-`tests/unit/workflows` has one file per workflow. `release.sh` checks the job
-graph: only `Release` and, with the App, `Release pull request` reach the
-environment and the key, `Release` runs only when it is due or there is no
-environment, no job with an environment runs code of the repository, and every
-job passes the library to the actions that need it; the others check that the
-repository's own workflows call workflow-check and workflow-scorecard as
-[FY-0034][fy-0034] asks. They read the workflows with mikefarah `yq` v4, which
-GitHub-hosted runners have, and fail without it; locally, run
-`nix shell nixpkgs#yq-go -c tests/run.sh`.
+scripts source `report.sh`, which reports errors, warnings, notices and the job
+summary, and `github/api.sh` and `github/contents.sh`, which call the GitHub
+API, from the library, and the helpers of this repository in `lib`:
+`lib/github/` calls the GitHub API on top of the library (`optional.sh`,
+`tags.sh`, `releases.sh`, `pulls.sh`, `runs.sh`), `lib/version.sh` tells
+versions and tags of releases, `lib/manifest.sh` reads the release-please
+manifest, `lib/app-key.sh` checks the App inputs, `lib/major-tag.sh` works out
+how `vX` has to change and `lib/clock.sh` measures ages. `tests/run.sh` tests
+them with the stubs in `tests/bin` and the fixtures and the `date` stub of the
+library, at the commit that `release.yaml` pins: CI passes it in `SHELL_LIB`,
+and otherwise `tests/run.sh` fetches it with `git` into
+`~/.cache/flakeyard/action-shell-lib/<commit>`. The suites in `tests/unit`
+mirror the actions and share the helpers in `tests/lib`. `tests/unit/workflows`
+has one file per workflow. `release.sh` checks the job graph: only `Release`
+and, with the App, `Release pull request` reach the environment and the key,
+`Release` runs only when it is due or there is no environment, no job with an
+environment runs code of the repository, and every job passes the library to the
+actions that need it; the others check that the repository's own workflows call
+workflow-check and workflow-scorecard as [FY-0034][fy-0034] asks. They read the
+workflows with mikefarah `yq` v4, which GitHub-hosted runners have, and fail
+without it; locally, run `nix shell nixpkgs#yq-go -c tests/run.sh`.
 
 The repository checks itself with [`test.yaml`](.github/workflows/test.yaml):
 its job `unit` runs `tests/run.sh`, and the job `check` calls

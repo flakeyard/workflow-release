@@ -12,8 +12,8 @@
 # fails with HTTP STATUS, 502 by default.
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
-# shellcheck source=../lib/fixtures/responses.sh
-source "$(dirname "$0")/../lib/fixtures/responses.sh"
+# shellcheck source=/dev/null
+source "${SHELL_LIB:?}/internal/testing/fixtures.sh"
 
 # fail STATUS [MESSAGE]: fail like gh does on an HTTP error.
 fail() {

@@ -3,14 +3,15 @@
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
 shopt -s inherit_errexit
+: "${SHELL_LIB:?}"
 : "${REPO:?}" "${SHA:?}" "${MANIFEST:?}"
 lib=$(dirname "$0")/../lib
 # shellcheck source=../lib/major-tag.sh
 source "$lib/major-tag.sh"
 # shellcheck source=../lib/manifest.sh
 source "$lib/manifest.sh"
-# shellcheck source=../lib/report.sh
-source "$lib/report.sh"
+# shellcheck source=/dev/null
+source "$SHELL_LIB/report.sh"
 
 version=$(root_version "$SHA")
 check_release_version "$version"

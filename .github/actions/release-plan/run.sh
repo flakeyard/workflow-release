@@ -13,6 +13,7 @@
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
 shopt -s inherit_errexit
+: "${SHELL_LIB:?}"
 : "${REPO:?}" "${BASE:?}" "${SHA:?}" "${RUN_ID:?}" "${MANIFEST:?}"
 : "${ENVIRONMENT?}" "${MOVE_MAJOR_TAG:?}"
 lib=$(dirname "$0")/../lib
@@ -28,8 +29,8 @@ source "$lib/clock.sh"
 source "$lib/major-tag.sh"
 # shellcheck source=../lib/manifest.sh
 source "$lib/manifest.sh"
-# shellcheck source=../lib/report.sh
-source "$lib/report.sh"
+# shellcheck source=/dev/null
+source "$SHELL_LIB/report.sh"
 
 # A run can be approved and rerun for 30 days; the last day is left for that.
 readonly MAX_RUN_AGE_DAYS=29 SECONDS_PER_DAY=86400
@@ -308,3 +309,5 @@ check_release
 if [[ $due == false ]]; then check_pending; fi
 if [[ $due == false && $MOVE_MAJOR_TAG == true ]]; then check_repair; fi
 write_decision
+# Many pending pull requests can reach the limit of annotations of a step.
+flush

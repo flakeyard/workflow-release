@@ -40,3 +40,15 @@ latest_setup
 fixture "repos/$REPO/releases/latest" "HTTP 500"
 run "keep-latest: API error fails" fail "$script"
 finish
+
+# release-please never writes a leading zero, which arithmetic would read as
+# octal.
+setup
+releases '[
+  {"tag_name":"v1.4.1","id":141,"draft":false,"prerelease":false},
+  {"tag_name":"v02.0.0","id":20,"draft":false,"prerelease":false}
+]'
+fixture "repos/$REPO/releases/latest" '{"id":141}'
+run "keep-latest: a tag with a leading zero is no release" ok "$script"
+expect no-calls
+finish

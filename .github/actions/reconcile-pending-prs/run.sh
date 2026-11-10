@@ -4,18 +4,19 @@
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
 shopt -s inherit_errexit
+: "${SHELL_LIB:?}"
 : "${REPO:?}" "${BASE:?}" "${MANIFEST:?}"
 lib=$(dirname "$0")/../lib
-# shellcheck source=../lib/github/api.sh
-source "$lib/github/api.sh"
+# shellcheck source=../lib/github/optional.sh
+source "$lib/github/optional.sh"
 # shellcheck source=../lib/github/pulls.sh
 source "$lib/github/pulls.sh"
 # shellcheck source=../lib/github/releases.sh
 source "$lib/github/releases.sh"
 # shellcheck source=../lib/manifest.sh
 source "$lib/manifest.sh"
-# shellcheck source=../lib/report.sh
-source "$lib/report.sh"
+# shellcheck source=/dev/null
+source "$SHELL_LIB/report.sh"
 
 RELEASE_HEAD=$(release_head "$BASE")
 readonly RELEASE_HEAD

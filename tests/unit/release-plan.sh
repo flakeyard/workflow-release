@@ -53,7 +53,8 @@ reviews() {
 # environment release, with nothing pending; the values override that.
 plan_setup() {
   setup
-  export BASE=main RUN_ID=100 ENVIRONMENT=release MOVE_MAJOR_TAG=false NOW=$now
+  export BASE=main RUN_ID=100 ENVIRONMENT=release MOVE_MAJOR_TAG=false
+  fixed_time "$now"
   apply "$@"
   fixture "repos/$REPO/actions/runs/100" \
     "{\"id\":100,\"workflow_id\":5,\"created_at\":\"$this_run_created\"}"
@@ -150,7 +151,7 @@ finish
 unversioned_case() {
   local name=$1 content=$2 tag=${3:-}
   takeover_setup
-  file_fixture "$MANIFEST" m5 "$content"
+  file_fixture "$REPO" "$MANIFEST" m5 "$content"
   [[ -z $tag ]] || fixture "repos/$REPO/releases/tags/$tag" "HTTP 500"
   run "release-plan: pending with a root version $name" ok "$script"
   expect_due false

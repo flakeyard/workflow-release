@@ -6,12 +6,13 @@
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
 shopt -s inherit_errexit
+: "${SHELL_LIB:?}"
 : "${CLIENT_ID?}" "${HAS_KEY:?}" "${KEY_VISIBLE:?}" "${EVENT:?}" "${REF:?}"
 lib=$(dirname "$0")/../lib
 # shellcheck source=../lib/app-key.sh
 source "$lib/app-key.sh"
-# shellcheck source=../lib/report.sh
-source "$lib/report.sh"
+# shellcheck source=/dev/null
+source "$SHELL_LIB/report.sh"
 
 readonly MAINTENANCE_BRANCH='^refs/heads/release/v[1-9][0-9]*$'
 readonly ZERO_BRANCH=refs/heads/release/v0

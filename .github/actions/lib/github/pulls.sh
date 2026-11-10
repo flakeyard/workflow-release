@@ -1,8 +1,9 @@
-# shellcheck shell=bash source-path=SCRIPTDIR
-# Release pull requests of REPO. Source this file; it expects REPO.
+# shellcheck shell=bash
+# Release pull requests of REPO. Source this file; it expects SHELL_LIB and
+# REPO.
 
-# shellcheck source=api.sh
-source "${BASH_SOURCE[0]%/*}/api.sh"
+# shellcheck source=/dev/null
+source "$SHELL_LIB/github/api.sh"
 
 # The label of a merged release pull request whose release is not tagged yet,
 # and the same label in an API path or query.
