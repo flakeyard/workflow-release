@@ -5,6 +5,11 @@ description: >-
   App, it returns GITHUB_TOKEN. Fails when only one of the client ID and the
   key is given.
 inputs:
+  shell-lib:
+    description: >-
+      Directory of action-shell-lib: the output path of its step in the job,
+      whose modules the scripts source.
+    required: true
   app-client-id:
     description: Client ID of the App, or empty.
     default: ""
@@ -20,6 +25,7 @@ runs:
     - name: Check the App inputs
       shell: bash
       env:
+        SHELL_LIB: ${{ inputs.shell-lib }}
         CLIENT_ID: ${{ inputs.app-client-id }}
         HAS_KEY: ${{ inputs.private-key != '' }}
       run: '"$GITHUB_ACTION_PATH/run.sh"'

@@ -13,12 +13,32 @@ readonly KEY_PRESENCE="secrets.APP_PRIVATE_KEY != ''"
 # References to actions that are not code of the calling repository: actions
 # of this workflow's repository, and others pinned by commit.
 readonly OWN_OR_PINNED='^(\$/\.github/actions/[a-z-]+|[a-z0-9-]+/[a-z0-9-]+@[0-9a-f]{40})$'
+# The step of action-shell-lib, pinned by commit, and the input of the actions
+# of this repository that gets its path.
+readonly SHELL_LIB_PIN='^flakeyard/action-shell-lib@[0-9a-f]{40}$'
+readonly SHELL_LIB_PATH='${{ steps.lib.outputs.path }}'
+readonly SHELL_LIB_INPUT='${{ inputs.shell-lib }}'
 
 # Helpers of the expressions of graph_check.
 readonly GRAPH_DEFS='
   def key_references: tostring | gsub($presence; "") | contains("secrets.APP_PRIVATE_KEY");
   def gated: has("environment");
+  def own_action: (.uses // "") | startswith("$/");
+  def library: (.uses // "") | test("action-shell-lib");
+  def sources_library: $actions[.uses | ltrimstr("$/.github/actions/")].inputs | has("shell-lib");
+  def runs_script: (.run // "") | contains("$GITHUB_ACTION_PATH/");
 '
+
+# internal_actions: print the actions of .github/actions as one JSON object,
+# their action.yml by name.
+internal_actions() {
+  local file name
+  for file in "$root"/.github/actions/*/action.yml; do
+    name=${file%/action.yml}
+    name=${name##*/}
+    yq -o=json . "$file" | jq -c --arg name "$name" '{($name): .}'
+  done | jq -sc add
+}
 
 # graph_check NAME FILTER: FILTER, a jq expression over the workflow, is
 # true.
@@ -26,11 +46,14 @@ graph_check() {
   local name=$1 filter=$2
   workflow_check "$workflow" "release.yaml: $name" "$GRAPH_DEFS $filter" \
     --arg presence "$KEY_PRESENCE" --argjson key_jobs "$KEY_JOBS" \
-    --arg own_or_pinned "$OWN_OR_PINNED"
+    --arg own_or_pinned "$OWN_OR_PINNED" --argjson actions "$actions" \
+    --arg lib_pin "$SHELL_LIB_PIN" --arg lib_path "$SHELL_LIB_PATH" \
+    --arg lib_input "$SHELL_LIB_INPUT"
 }
 
 if require_yq release.yaml; then
   workflow=$(load_workflow release.yaml)
+  actions=$(internal_actions)
 
   graph_check "only the release jobs use an environment" \
     "[.jobs | to_entries[] | select(.value | gated) | .key] | sort == \$key_jobs"
@@ -63,10 +86,22 @@ if require_yq release.yaml; then
     and .concurrency[\"cancel-in-progress\"] == false and .concurrency.queue == \"max\"
     and (.concurrency.group | contains(\"github.ref\") | not)"
   graph_check "latest and state use GITHUB_TOKEN" \
-    "[.jobs.latest, .jobs.state | .steps[] | .with.token] | all(. == \"\${{ github.token }}\")"
+    "[.jobs.latest, .jobs.state | .steps[] | select(own_action) | .with.token] | all(. == \"\${{ github.token }}\")"
   graph_check "on release/v0 the plan stops after the preflight and nothing runs" \
     ".jobs.plan | (.outputs.checked | contains(\"steps.preflight.outputs.skip != 'true'\"))
-    and ([.steps[1:][] | .if // \"\"] | all(contains(\"steps.preflight.outputs.skip != 'true'\")))"
+    and ([.steps[] | select(.id != \"lib\" and .id != \"preflight\") | .if // \"\"]
+    | all(contains(\"steps.preflight.outputs.skip != 'true'\")))"
   graph_check "outputs come from the state job" \
     "[.on.workflow_call.outputs[] | .value | select(contains(\"jobs.state.outputs.state\") | not)] == []"
+  # The library is fetched once per job (FY-0035, workflow-check ADR-0003).
+  graph_check "every job that runs an action of this repository calls the library first, once" \
+    '[.jobs[] | select(any(.steps[]; own_action))
+    | (.steps[0] | .id == "lib" and (.uses | test($lib_pin)))
+    and ([.steps[] | select(library)] | length == 1)] | all'
+  graph_check "every action that sources the library gets its path" \
+    'all(.jobs[].steps[] | select(own_action and sources_library); .with["shell-lib"] == $lib_path)'
+  graph_check "the actions do not call the library and give its path to their scripts" \
+    '[$actions[] | .runs.steps[] | select(library)] == []
+    and ($actions | all(.[]; any(.runs.steps[]; runs_script) == (.inputs | has("shell-lib"))
+    and all(.runs.steps[] | select(runs_script); .env.SHELL_LIB == $lib_input)))'
 fi

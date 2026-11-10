@@ -3,6 +3,11 @@ description: >-
   Moves vX forward to the newest published vX.Y.Z of the major version in the
   manifest, creating it when missing; v0 follows the pre-releases 0.y.z.
 inputs:
+  shell-lib:
+    description: >-
+      Directory of action-shell-lib: the output path of its step in the job,
+      whose modules the scripts source.
+    required: true
   token:
     required: true
   manifest-file:
@@ -12,6 +17,7 @@ runs:
   steps:
     - shell: bash
       env:
+        SHELL_LIB: ${{ inputs.shell-lib }}
         GH_TOKEN: ${{ inputs.token }}
         REPO: ${{ github.repository }}
         SHA: ${{ github.sha }}

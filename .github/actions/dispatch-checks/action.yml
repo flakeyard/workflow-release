@@ -3,6 +3,11 @@ description: >-
   Starts a check workflow with workflow_dispatch on the open release pull
   request, whose checks do not start when GITHUB_TOKEN opened it.
 inputs:
+  shell-lib:
+    description: >-
+      Directory of action-shell-lib: the output path of its step in the job,
+      whose modules the scripts source.
+    required: true
   check-workflow:
     required: true
 runs:
@@ -10,6 +15,7 @@ runs:
   steps:
     - shell: bash
       env:
+        SHELL_LIB: ${{ inputs.shell-lib }}
         GH_TOKEN: ${{ github.token }}
         REPO: ${{ github.repository }}
         OWNER: ${{ github.repository_owner }}

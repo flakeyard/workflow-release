@@ -1,6 +1,11 @@
 name: Keep the newest release latest
 description: Marks the newest published vX.Y.Z as latest, also after a release from release/vN.
 inputs:
+  shell-lib:
+    description: >-
+      Directory of action-shell-lib: the output path of its step in the job,
+      whose modules the scripts source.
+    required: true
   token:
     required: true
 runs:
@@ -8,6 +13,7 @@ runs:
   steps:
     - shell: bash
       env:
+        SHELL_LIB: ${{ inputs.shell-lib }}
         GH_TOKEN: ${{ inputs.token }}
         REPO: ${{ github.repository }}
       run: '"$GITHUB_ACTION_PATH/run.sh"'
