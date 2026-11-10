@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.4](https://github.com/flakeyard/workflow-release/compare/v0.2.3...v0.2.4) (2026-11-10)
+
+
+### Bug Fixes
+
+* call action-shell-lib once in each job of the release workflow ([#40](https://github.com/flakeyard/workflow-release/issues/40)) ([694481a](https://github.com/flakeyard/workflow-release/commit/694481a933b359392c379e9491cb036784dbb332))
+* source the report, API and contents modules from action-shell-lib ([#41](https://github.com/flakeyard/workflow-release/issues/41)) ([575b4eb](https://github.com/flakeyard/workflow-release/commit/575b4eb2a6b92e482a6bc57cb33eaeb93cc959cd))
+
 ## [0.2.3](https://github.com/flakeyard/workflow-release/compare/v0.2.2...v0.2.3) (2026-11-05)
 
 
