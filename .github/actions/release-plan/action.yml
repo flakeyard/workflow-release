@@ -19,9 +19,6 @@ outputs:
   due:
     description: "'true' when the job that releases is due."
     value: ${{ steps.plan.outputs.due }}
-  reason:
-    description: release, takeover or repair when due; empty otherwise.
-    value: ${{ steps.plan.outputs.reason }}
 runs:
   using: composite
   steps:
