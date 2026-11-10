@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of reconcile-pending-prs.
 
-script=reconcile-pending-prs/run.sh
+script=.github/actions/reconcile-pending-prs/run.sh
 
 # pr NUMBER BASE VERSION [HEAD]: a pull request from HEAD, release-please's
 # branch by default, merged into BASE as commit mNUMBER, where the manifest has
@@ -15,8 +15,8 @@ pr() {
 # reconcile_setup: pending pull requests into main and release/v1; #8 was
 # closed without merging.
 reconcile_setup() {
-  setup
-  export BASE=main
+  start_test
+  apply BASE=main
   pending_prs '[
     {"number":5,"pull_request":{"merged_at":"x"}},
     {"number":6,"pull_request":{"merged_at":"x"}},
@@ -51,21 +51,21 @@ finish
 
 reconcile_setup
 release v1.2.0
-export FAIL_ON="DELETE repos/$REPO/issues/5/labels/autorelease:%20pending 404"
+apply FAIL_ON="DELETE repos/$REPO/issues/5/labels/autorelease:%20pending 404"
 run "reconcile: pending label already removed" ok "$script"
 expect call "DELETE repos/$REPO/issues/5/labels/autorelease:%20pending"
 finish
 
 reconcile_setup
 release v1.2.0
-export FAIL_ON="DELETE repos/$REPO/issues/5/labels/autorelease:%20pending"
+apply FAIL_ON="DELETE repos/$REPO/issues/5/labels/autorelease:%20pending"
 run "reconcile: removing the label fails" fail "$script"
 expect message "HTTP 502"
 finish
 
 reconcile_setup
 release v1.2.0
-export FAIL_ON="POST repos/$REPO/issues/5/labels"
+apply FAIL_ON="POST repos/$REPO/issues/5/labels"
 run "reconcile: adding the label fails" fail "$script"
 expect no-call "DELETE"
 finish
@@ -75,15 +75,15 @@ fixture "repos/$REPO/releases/tags/v1.2.0" "HTTP 500"
 run "reconcile: API error fails" fail "$script"
 finish
 
-setup
-export BASE=main
+start_test
+apply BASE=main
 pending_prs '[]'
 run "reconcile: nothing pending" ok "$script"
 expect no-calls
 finish
 
-setup
-export BASE=release/v1
+start_test
+apply BASE=release/v1
 pending_prs '[{"number":9,"pull_request":{"merged_at":"x"}}]'
 pr 9 release/v1 1.1.1
 release v1.1.1
@@ -91,8 +91,8 @@ run "reconcile: release branch" ok "$script"
 expect call "POST repos/$REPO/issues/9/labels"
 finish
 
-setup
-export BASE=main
+start_test
+apply BASE=main
 pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
 pr 3 main 1.2.0 feature
 release v1.2.0
@@ -101,8 +101,8 @@ expect no-calls
 finish
 
 # The merge commit predates the manifest: the contents API answers 404.
-setup
-export BASE=main
+start_test
+apply BASE=main
 pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
 pull "$(pr_json 3 m3)"
 run "reconcile: no manifest at the merge commit" ok "$script"
@@ -114,8 +114,8 @@ finish
 # TAG, the tag such a version would give, exists but is never read.
 no_version_case() {
   local name=$1 content=$2 tag=${3:-}
-  setup
-  export BASE=main
+  start_test
+  apply BASE=main
   pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
   pull "$(pr_json 3 m3)"
   file_fixture "$REPO" "$MANIFEST" m3 "$content"
@@ -130,8 +130,8 @@ no_version_case "a path" '{".": "../../x?y=1"}' "v../../x?y=1"
 no_version_case "with a leading zero" '{".": "01.2.0"}' v01.2.0
 no_version_case "in a manifest that is no JSON" 'not json'
 
-setup
-export BASE=main
+start_test
+apply BASE=main
 pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
 pull "$(pr_json 3 m3)"
 fixture "repos/$REPO/contents/$MANIFEST?ref=m3" "HTTP 500"

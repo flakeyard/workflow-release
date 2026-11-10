@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of preflight: the release-please configuration.
 
-script=preflight/config.sh
+script=.github/actions/preflight/config.sh
 
 # A supported configuration, without its braces.
 ok='"include-component-in-tag":false,"packages":{".":{}}'
@@ -12,8 +12,8 @@ ok='"include-component-in-tag":false,"packages":{".":{}}'
 config_case() {
   local name=$1 expected=$2
   shift 2
-  setup
-  apply "$@"
+  start_test
+  configure "$@"
   file_fixture "$REPO" "$CONFIG" "$SHA" "$(param config "{$ok}")"
   manifest "$(param version 0.0.0)"
   run "preflight config: $name" "$expected" "$script"
@@ -43,19 +43,19 @@ config_case "manifest version with a leading zero" fail version=01.2.3
 config_case "release/v2 with version 2" ok version=2.1.0 REF=refs/heads/release/v2
 config_case "release/v1 with version 2" fail version=2.1.0 REF=refs/heads/release/v1
 
-setup
+start_test
 file_fixture "$REPO" "$CONFIG" "$SHA" "{$ok}"
 file_fixture "$REPO" "$MANIFEST" "$SHA" '{"lib": "1.0.0"}'
 run "preflight config: manifest without root" fail "$script"
 finish
 
-setup
+start_test
 manifest 0.0.0
 run "preflight config: a missing configuration is named" fail "$script"
 expect message "$CONFIG does not exist at $SHA"
 finish
 
-setup
+start_test
 file_fixture "$REPO" "$CONFIG" "$SHA" "{$ok}"
 run "preflight config: a missing manifest is named" fail "$script"
 expect message "$MANIFEST does not exist at $SHA"

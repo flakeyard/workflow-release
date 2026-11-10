@@ -1,12 +1,12 @@
 # shellcheck shell=bash
 # Tests of sync-major-tag.
 
-script=sync-major-tag/run.sh
+script=.github/actions/sync-major-tag/run.sh
 
 # sync_setup VERSION: the manifest at VERSION and two pages of releases.
 sync_setup() {
   local version=$1
-  setup
+  start_test
   manifest "$version"
   releases '[
     {"tag_name":"v1.9.0","draft":false,"prerelease":false},
@@ -90,7 +90,7 @@ finish
 
 sync_setup 1.10.0
 tag v1.10.0 c110
-export FAIL_ON="POST repos/$REPO/git/refs 422"
+apply FAIL_ON="POST repos/$REPO/git/refs 422"
 run "sync-major-tag: creating the tag fails when it appeared meanwhile" fail "$script"
 expect message "HTTP 422"
 finish
@@ -101,7 +101,7 @@ expect message "the root version must be X.Y.Z, not '1.10'"
 expect no-calls
 finish
 
-setup
+start_test
 run "sync-major-tag: a missing manifest is named" fail "$script"
 expect message "$MANIFEST does not exist at $SHA"
 finish

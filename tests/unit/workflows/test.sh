@@ -3,8 +3,6 @@
 # Static tests of the CI of this repository: it runs the unit tests and calls
 # workflow-check as the caller contract asks of every repository (FY-0034).
 
-: "${root:?}"
-
 # The condition of the caller job: no result for a superseded pull request
 # run, and a final status for every dispatched run.
 readonly CALLER_CONDITION="\${{ !cancelled() || github.event_name == 'workflow_dispatch' }}"
@@ -14,8 +12,8 @@ readonly WORKFLOW_CHECK='^flakeyard/workflow-check/\\.github/workflows/check\\.y
 # ci_test NAME FILTER: FILTER is true of test.yaml.
 ci_test() { workflow_check "$ci_workflow" "test.yaml: $1" "$2"; }
 
-if require_yq test.yaml; then
-  ci_workflow=$(load_workflow test.yaml)
+if require_yq .github/workflows/test.yaml; then
+  ci_workflow=$(load_yaml .github/workflows/test.yaml)
   ci_test "no permissions at the top level" '.permissions == {}'
   ci_test "the unit tests run without credentials" \
     '.jobs.unit | (.steps[0].with == {"persist-credentials": false})

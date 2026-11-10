@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of preflight: the run.
 
-script=preflight/inputs.sh
+script=.github/actions/preflight/inputs.sh
 
 # inputs_case NAME EXPECTED [NAME=VALUE...]: check a push to main with neither
 # a client ID nor a visible key, with the given overrides; message=TEXT is
@@ -9,9 +9,9 @@ script=preflight/inputs.sh
 inputs_case() {
   local name=$1 expected=$2
   shift 2
-  setup
-  export EVENT=push CLIENT_ID="" HAS_KEY=false KEY_VISIBLE=true DEFAULT_BRANCH=main
-  apply "$@"
+  start_test
+  apply EVENT=push CLIENT_ID="" HAS_KEY=false KEY_VISIBLE=true DEFAULT_BRANCH=main
+  configure "$@"
   run "preflight run: $name" "$expected" "$script"
   expect_param_message
   finish
@@ -34,9 +34,9 @@ inputs_case "workflow_dispatch" fail EVENT=workflow_dispatch DEFAULT_BRANCH="" \
 skip_case() {
   local name=$1 expected=$2 skip=$3
   shift 3
-  setup
-  export EVENT=push CLIENT_ID="" HAS_KEY=false KEY_VISIBLE=true DEFAULT_BRANCH=main
-  apply "$@"
+  start_test
+  apply EVENT=push CLIENT_ID="" HAS_KEY=false KEY_VISIBLE=true DEFAULT_BRANCH=main
+  configure "$@"
   run "preflight run: $name" "$expected" "$script"
   expect output skip "$skip"
   expect_param_message

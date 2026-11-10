@@ -13,9 +13,8 @@ readonly KEY_PRESENCE="secrets.APP_PRIVATE_KEY != ''"
 # References to actions that are not code of the calling repository: actions
 # of this workflow's repository, and others pinned by commit.
 readonly OWN_OR_PINNED='^(\$/\.github/actions/[a-z-]+|[a-z0-9-]+/[a-z0-9-]+@[0-9a-f]{40})$'
-# The step of action-shell-lib, pinned by commit, and the input of the actions
-# of this repository that gets its path.
-readonly SHELL_LIB_PIN='^flakeyard/action-shell-lib@[0-9a-f]{40}$'
+# The path of action-shell-lib, and the input of the actions of this
+# repository that gets it; LIBRARY_USES_FORM of the library is its pin.
 readonly SHELL_LIB_PATH='${{ steps.lib.outputs.path }}'
 readonly SHELL_LIB_INPUT='${{ inputs.shell-lib }}'
 
@@ -36,7 +35,7 @@ internal_actions() {
   for file in "$root"/.github/actions/*/action.yml; do
     name=${file%/action.yml}
     name=${name##*/}
-    yq -o=json . "$file" | jq -c --arg name "$name" '{($name): .}'
+    load_yaml "${file#"$root/"}" | jq -c --arg name "$name" '{($name): .}'
   done | jq -sc add
 }
 
@@ -47,12 +46,12 @@ graph_check() {
   workflow_check "$workflow" "release.yaml: $name" "$GRAPH_DEFS $filter" \
     --arg presence "$KEY_PRESENCE" --argjson key_jobs "$KEY_JOBS" \
     --arg own_or_pinned "$OWN_OR_PINNED" --argjson actions "$actions" \
-    --arg lib_pin "$SHELL_LIB_PIN" --arg lib_path "$SHELL_LIB_PATH" \
+    --arg lib_pin "$LIBRARY_USES_FORM" --arg lib_path "$SHELL_LIB_PATH" \
     --arg lib_input "$SHELL_LIB_INPUT"
 }
 
-if require_yq release.yaml; then
-  workflow=$(load_workflow release.yaml)
+if require_yq .github/workflows/release.yaml; then
+  workflow=$(load_yaml .github/workflows/release.yaml)
   actions=$(internal_actions)
 
   graph_check "only the release jobs use an environment" \
@@ -104,4 +103,6 @@ if require_yq release.yaml; then
     '[$actions[] | .runs.steps[] | select(library)] == []
     and ($actions | all(.[]; any(.runs.steps[]; runs_script) == (.inputs | has("shell-lib"))
     and all(.runs.steps[] | select(runs_script); .env.SHELL_LIB == $lib_input)))'
+  # The tests take the library at that commit (tests/lib/shell-lib.sh).
+  check_library_pins
 fi

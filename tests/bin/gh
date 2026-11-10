@@ -1,114 +1,12 @@
 #!/usr/bin/env bash
-# Stub of gh for tests.
-#
-# GET PATH is answered from $FIXTURES/<key>, where <key> is PATH with "/",
-# "?", "&" and "=" replaced by "_"; with --paginate, $FIXTURES/<key>.2,
-# <key>.3 and so on are further pages. A missing file is HTTP 404, and a file
-# containing "HTTP 500" is a server error; like gh, errors print the error body
-# on stdout and the message on stderr.
-#
-# Other methods and "gh workflow run" are appended to $CALLS and succeed,
-# unless "<METHOD> <PATH> [STATUS]" is listed in $FAIL_ON (one per line), which
-# fails with HTTP STATUS, 502 by default.
-# shellcheck source-path=SCRIPTDIR
+# Stub of gh for tests: "gh workflow ARG..." is appended to $CALLS as
+# "workflow ARG..." and succeeds; every other command goes to the stub of
+# action-shell-lib in TESTING_BIN.
 set -euo pipefail
-# shellcheck source=/dev/null
-source "${SHELL_LIB:?}/internal/testing/fixtures.sh"
 
-# fail STATUS [MESSAGE]: fail like gh does on an HTTP error.
-fail() {
-  local status=$1 message=${2:-Error}
-  printf '{"message":"%s","status":"%s"}\n' "$message" "$status"
-  echo "gh: $message (HTTP $status)" >&2
-  exit 1
-}
-
-# failure_status METHOD PATH: print the HTTP status that FAIL_ON gives the
-# call; fails when the call succeeds.
-failure_status() {
-  local call="$1 $2" line
-  while IFS= read -r line; do
-    if [[ $line == "$call" ]]; then
-      echo 502
-      return 0
-    fi
-    if [[ $line =~ ^(.*)\ ([0-9]{3})$ && ${BASH_REMATCH[1]} == "$call" ]]; then
-      echo "${BASH_REMATCH[2]}"
-      return 0
-    fi
-  done <<<"${FAIL_ON:-}"
-  return 1
-}
-
-if [[ $1 == workflow ]]; then
+if [[ ${1-} == workflow ]]; then
   shift
-  echo "workflow $*" >>"$CALLS"
+  printf 'workflow %s\n' "$*" >>"${CALLS:?}"
   exit 0
 fi
-[[ $1 == api ]] || {
-  echo "stub gh: unsupported: $*" >&2
-  exit 2
-}
-shift
-
-method="" path="" jq_filter="" paginate=false fields=()
-while (($#)); do
-  case $1 in
-    -X)
-      method=$2
-      shift 2
-      ;;
-    --jq | -q)
-      jq_filter=$2
-      shift 2
-      ;;
-    -f | -F)
-      fields+=("$2")
-      shift 2
-      ;;
-    --paginate)
-      paginate=true
-      shift
-      ;;
-    --silent) shift ;;
-    -*)
-      echo "stub gh: unsupported flag $1" >&2
-      exit 2
-      ;;
-    *)
-      path=$1
-      shift
-      ;;
-  esac
-done
-if [[ -z $method ]]; then
-  if ((${#fields[@]})); then method=POST; else method=GET; fi
-fi
-
-if [[ $method != GET ]]; then
-  echo "$method $path ${fields[*]}" >>"$CALLS"
-  if status=$(failure_status "$method" "$path"); then
-    fail "$status"
-  fi
-  exit 0
-fi
-
-file=$(fixture_file "$path")
-[[ -f $file ]] || fail 404 "Not Found"
-grep -q 'HTTP 500' "$file" && fail 500 "Server Error"
-
-pages=("$file")
-if $paginate; then
-  page=2
-  while [[ -f $file.$page ]]; do
-    pages+=("$file.$page")
-    page=$((page + 1))
-  done
-fi
-for page in "${pages[@]}"; do
-  if [[ -n $jq_filter ]]; then
-    jq -r "$jq_filter" "$page"
-  else
-    cat "$page"
-  fi
-done
+exec "${TESTING_BIN:?}/gh" "$@"
