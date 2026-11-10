@@ -53,7 +53,8 @@ reviews() {
 # environment release, with nothing pending; the values override that.
 plan_setup() {
   setup
-  export BASE=main RUN_ID=100 ENVIRONMENT=release MOVE_MAJOR_TAG=false NOW=$now
+  export BASE=main RUN_ID=100 ENVIRONMENT=release MOVE_MAJOR_TAG=false
+  fixed_time "$now"
   apply "$@"
   fixture "repos/$REPO/actions/runs/100" \
     "{\"id\":100,\"workflow_id\":5,\"created_at\":\"$this_run_created\"}"
@@ -150,7 +151,7 @@ finish
 unversioned_case() {
   local name=$1 content=$2 tag=${3:-}
   takeover_setup
-  file_fixture "$MANIFEST" m5 "$content"
+  file_fixture "$REPO" "$MANIFEST" m5 "$content"
   [[ -z $tag ]] || fixture "repos/$REPO/releases/tags/$tag" "HTTP 500"
   run "release-plan: pending with a root version $name" ok "$script"
   expect_due false
@@ -213,6 +214,19 @@ for status in queued in_progress waiting pending requested; do
   expect_due false
   finish
 done
+
+# Twelve pending pull requests whose runs are still running: twelve findings,
+# more than a step keeps as notices.
+plan_setup
+prs=()
+for number in {11..22}; do prs+=("$(pr_json "$number" "m$number")"); done
+pending "${prs[@]}"
+for number in {11..22}; do merge_run "m$number" in_progress; done
+run "release-plan: the limit of notices does not hide the decision" ok "$script"
+expect_due false
+expect_first_notice "No release due."
+expect message "::notice::4 more notices are not shown here."
+finish
 
 takeover_setup
 run "release-plan: the merge run completed without a review" ok "$script"
@@ -371,6 +385,22 @@ takeover_setup MOVE_MAJOR_TAG=true
 fixture "repos/$REPO/contents/$MANIFEST?ref=$SHA" "HTTP 500"
 run "release-plan: a takeover is not checked for a repair" ok "$script"
 expect_due true takeover
+finish
+
+# A failure after a finding still writes the finding as a notice.
+plan_setup MOVE_MAJOR_TAG=true
+pending "$(pr_json 5 m5)"
+merge_run m5 in_progress
+manifest 1.2
+run "release-plan: a failure writes the findings before it" fail "$script"
+expect message "the root version must be X.Y.Z, not '1.2'"
+expect message "::notice::not due: https://x/runs/77, the run of #5"
+finish
+
+plan_setup MOVE_MAJOR_TAG=true
+rm -- "$(fixture_file "repos/$REPO/contents/$MANIFEST?ref=$SHA")"
+run "release-plan: a missing manifest is named" fail "$script"
+expect message "$MANIFEST does not exist at $SHA"
 finish
 
 # api_error_case SETUP PATH: an HTTP 500 of GET PATH fails the plan.

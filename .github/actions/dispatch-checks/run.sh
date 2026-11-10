@@ -3,12 +3,13 @@
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
 shopt -s inherit_errexit
+: "${SHELL_LIB:?}"
 : "${REPO:?}" "${OWNER:?}" "${BASE:?}" "${WORKFLOW:?}"
 lib=$(dirname "$0")/../lib
 # shellcheck source=../lib/github/pulls.sh
 source "$lib/github/pulls.sh"
-# shellcheck source=../lib/report.sh
-source "$lib/report.sh"
+# shellcheck source=/dev/null
+source "$SHELL_LIB/report.sh"
 
 head=$(release_head "$BASE")
 number=$(gh api "repos/$REPO/pulls?state=open&base=$BASE&head=$OWNER:$head" \

@@ -13,6 +13,7 @@
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
 shopt -s inherit_errexit
+: "${SHELL_LIB:?}"
 : "${REPO:?}" "${BASE:?}" "${SHA:?}" "${RUN_ID:?}" "${MANIFEST:?}"
 : "${ENVIRONMENT?}" "${MOVE_MAJOR_TAG:?}"
 lib=$(dirname "$0")/../lib
@@ -28,8 +29,8 @@ source "$lib/clock.sh"
 source "$lib/major-tag.sh"
 # shellcheck source=../lib/manifest.sh
 source "$lib/manifest.sh"
-# shellcheck source=../lib/report.sh
-source "$lib/report.sh"
+# shellcheck source=/dev/null
+source "$SHELL_LIB/report.sh"
 
 # A run can be approved and rerun for 30 days; the last day is left for that.
 readonly MAX_RUN_AGE_DAYS=29 SECONDS_PER_DAY=86400
@@ -38,7 +39,7 @@ readonly EARLIER_RUNS=20
 RELEASE_HEAD=$(release_head "$BASE")
 readonly RELEASE_HEAD
 
-due=false reason=""
+due=false reason="" findings=()
 
 # decide REASON: the job that releases is due; the first reason is reported.
 decide() {
@@ -47,12 +48,23 @@ decide() {
   due=true
 }
 
-# note TEXT: report a finding of the plan in the job summary and as a notice;
-# a job summary cannot be read through the API.
+# note TEXT: report a finding of the plan in the job summary, and later as a
+# notice; a job summary cannot be read through the API.
 note() {
   summary "- $*"
-  notice "$*"
+  findings+=("$*")
 }
+
+# end_step: write the findings of note as notices, and the last annotation of
+# each kind that reached the limit. It runs as the step exits, also when it
+# fails. A step keeps only ANNOTATIONS_PER_KIND notices, so the findings come
+# after the decision, which the limit must not hide.
+end_step() {
+  local finding
+  for finding in "${findings[@]}"; do notice "$finding"; done
+  flush
+}
+trap end_step EXIT
 
 # is_branch_creation: the push created a branch, such as release/vN at a
 # release; nothing is pending on a new branch.

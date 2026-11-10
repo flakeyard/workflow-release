@@ -4,6 +4,7 @@
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
 shopt -s inherit_errexit
+: "${SHELL_LIB:?}"
 : "${CLIENT_ID?}" "${HAS_KEY:?}"
 lib=$(dirname "$0")/../lib
 # shellcheck source=../lib/app-key.sh

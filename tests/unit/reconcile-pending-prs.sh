@@ -118,7 +118,7 @@ no_version_case() {
   export BASE=main
   pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
   pull "$(pr_json 3 m3)"
-  file_fixture "$MANIFEST" m3 "$content"
+  file_fixture "$REPO" "$MANIFEST" m3 "$content"
   [[ -z $tag ]] || release "$tag"
   run "reconcile: root version $name" ok "$script"
   expect no-calls

@@ -1,8 +1,9 @@
 # shellcheck shell=bash source-path=SCRIPTDIR
-# Tags of REPO. Source this file; it expects REPO.
+# Tags of REPO. Source this file; it expects SHELL_LIB and
+# REPO.
 
-# shellcheck source=api.sh
-source "${BASH_SOURCE[0]%/*}/api.sh"
+# shellcheck source=optional.sh
+source "${BASH_SOURCE[0]%/*}/optional.sh"
 
 # find_tag_commit TAG: print the commit a tag points at, following an annotated
 # tag; empty when the tag does not exist.

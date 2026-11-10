@@ -14,7 +14,7 @@ config_case() {
   shift 2
   setup
   apply "$@"
-  file_fixture "$CONFIG" "$SHA" "$(param config "{$ok}")"
+  file_fixture "$REPO" "$CONFIG" "$SHA" "$(param config "{$ok}")"
   manifest "$(param version 0.0.0)"
   run "preflight config: $name" "$expected" "$script"
   finish
@@ -44,7 +44,19 @@ config_case "release/v2 with version 2" ok version=2.1.0 REF=refs/heads/release/
 config_case "release/v1 with version 2" fail version=2.1.0 REF=refs/heads/release/v1
 
 setup
-file_fixture "$CONFIG" "$SHA" "{$ok}"
-file_fixture "$MANIFEST" "$SHA" '{"lib": "1.0.0"}'
+file_fixture "$REPO" "$CONFIG" "$SHA" "{$ok}"
+file_fixture "$REPO" "$MANIFEST" "$SHA" '{"lib": "1.0.0"}'
 run "preflight config: manifest without root" fail "$script"
+finish
+
+setup
+manifest 0.0.0
+run "preflight config: a missing configuration is named" fail "$script"
+expect message "$CONFIG does not exist at $SHA"
+finish
+
+setup
+file_fixture "$REPO" "$CONFIG" "$SHA" "{$ok}"
+run "preflight config: a missing manifest is named" fail "$script"
+expect message "$MANIFEST does not exist at $SHA"
 finish

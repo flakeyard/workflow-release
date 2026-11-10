@@ -1,8 +1,9 @@
 # shellcheck shell=bash
 # The life of one test: its fixtures directory, environment, parameters and
-# count. Source this file; it expects root, the repository's directory.
+# count. Source this file; it expects root, the repository's directory, and
+# library, the directory of action-shell-lib.
 
-: "${root:?}"
+: "${root:?}" "${library:?}"
 failed=0 passed=0 current=""
 # Test parameters given as lower-case name=value to apply.
 declare -A params
@@ -11,7 +12,9 @@ declare -A params
 setup() {
   work=$(mktemp -d)
   export FIXTURES=$work/fixtures CALLS=$work/calls GITHUB_OUTPUT=$work/output
-  export GITHUB_STEP_SUMMARY=$work/summary PATH=$root/tests/bin:$PATH
+  export GITHUB_STEP_SUMMARY=$work/summary SHELL_LIB=$library
+  # The stubs of this repository first, then the date stub of the library.
+  export PATH=$root/tests/bin:$library/internal/testing/bin:$PATH
   mkdir -p "$FIXTURES"
   : >"$CALLS"
   : >"$GITHUB_OUTPUT"
@@ -19,7 +22,7 @@ setup() {
   export MANIFEST=.release-please-manifest.json CONFIG=release-please-config.json
   unset NEW_BRANCH CREATED CREATED_TAG RELEASE_FAILED CLIENT_ID HAS_KEY EVENT \
     DEFAULT_BRANCH BASE OWNER WORKFLOW FAIL_ON RUN_ID BRANCH TAG COMMIT \
-    ENVIRONMENT MOVE_MAJOR_TAG NOW KEY_VISIBLE
+    ENVIRONMENT MOVE_MAJOR_TAG KEY_VISIBLE
   params=()
 }
 

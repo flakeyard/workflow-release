@@ -1,8 +1,9 @@
-# shellcheck shell=bash source-path=SCRIPTDIR
-# Workflow runs of REPO. Source this file; it expects REPO.
+# shellcheck shell=bash
+# Workflow runs of REPO. Source this file; it expects SHELL_LIB and
+# REPO.
 
-# shellcheck source=api.sh
-source "${BASH_SOURCE[0]%/*}/api.sh"
+# shellcheck source=/dev/null
+source "$SHELL_LIB/github/api.sh"
 
 # run_path ID: print the API path of a workflow run.
 run_path() {

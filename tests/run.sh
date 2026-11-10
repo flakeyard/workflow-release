@@ -9,12 +9,17 @@ set -uo pipefail
 shopt -s globstar
 
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+# shellcheck source=lib/shell-lib.sh
+source "$root/tests/lib/shell-lib.sh"
 # shellcheck source=lib/case.sh
 source "$root/tests/lib/case.sh"
 # shellcheck source=lib/checks.sh
 source "$root/tests/lib/checks.sh"
-# shellcheck source=lib/fixtures/responses.sh
-source "$root/tests/lib/fixtures/responses.sh"
+# The fixtures of the library; not its public API, used only by tests.
+# shellcheck source=/dev/null
+source "$library/internal/testing/fixtures.sh"
+# shellcheck source=lib/fixtures/late.sh
+source "$root/tests/lib/fixtures/late.sh"
 # shellcheck source=lib/fixtures/manifest.sh
 source "$root/tests/lib/fixtures/manifest.sh"
 # shellcheck source=lib/fixtures/tags.sh

@@ -1,8 +1,9 @@
-# shellcheck shell=bash source-path=SCRIPTDIR
+# shellcheck shell=bash
 # The inputs of a GitHub App: its client ID and its private key come together.
+# Source this file; it expects SHELL_LIB.
 
-# shellcheck source=report.sh
-source "${BASH_SOURCE[0]%/*}/report.sh"
+# shellcheck source=/dev/null
+source "$SHELL_LIB/report.sh"
 
 # check_app_key CLIENT_ID HAS_KEY: fail unless both or neither of the client
 # ID and the key are given; HAS_KEY is true when the key is.

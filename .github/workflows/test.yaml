@@ -29,8 +29,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The library that the scripts source, at the commit that release.yaml
+      # pins.
+      - id: lib
+        uses: flakeyard/action-shell-lib@3bad257f744402ce4627954c4250171150ffb54d # v0.1.1
       # The static tests of the workflows use the runner's mikefarah yq.
-      - run: tests/run.sh
+      - env:
+          SHELL_LIB: ${{ steps.lib.outputs.path }}
+        run: tests/run.sh
 
   check:
     needs: [unit]

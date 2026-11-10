@@ -7,6 +7,7 @@
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
 shopt -s inherit_errexit
+: "${SHELL_LIB:?}"
 : "${REPO:?}" "${SHA:?}" "${MANIFEST:?}"
 lib=$(dirname "$0")/../lib
 # shellcheck source=../lib/github/releases.sh
@@ -15,8 +16,8 @@ source "$lib/github/releases.sh"
 source "$lib/github/tags.sh"
 # shellcheck source=../lib/manifest.sh
 source "$lib/manifest.sh"
-# shellcheck source=../lib/report.sh
-source "$lib/report.sh"
+# shellcheck source=/dev/null
+source "$SHELL_LIB/report.sh"
 
 # A tag that release-please has just created can take a moment to be visible.
 readonly TAG_ATTEMPTS=5 TAG_RETRY_SECONDS=3
@@ -39,12 +40,6 @@ created_in_this_run() {
 created_other_tag() {
   local tag=$1
   [[ ${CREATED:-} == true && -n ${CREATED_TAG:-} && $CREATED_TAG != "$tag" ]]
-}
-
-# is_release_tag TAG: TAG is vX.Y.Z.
-is_release_tag() {
-  local tag=$1
-  [[ $tag == v* && ${tag#v} =~ $RELEASE_VERSION ]]
 }
 
 # release_tag_commit TAG: print the commit of TAG, empty when there is no such
@@ -88,8 +83,7 @@ report_elsewhere() {
     notice "$tag was released at $commit, not at $SHA; the run of $commit publishes it"
     write_elsewhere "$tag" "$commit" true
   elif [[ ${RELEASE_FAILED:-} == true ]]; then
-    notice "$tag exists at $commit; if this run released it before" \
-      "release-please failed, the run of $commit publishes it"
+    notice "$tag exists at $commit; if this run released it before release-please failed, the run of $commit publishes it"
     write_elsewhere "$tag" "$commit" false
   fi
 }

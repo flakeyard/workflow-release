@@ -20,6 +20,9 @@ if require_yq test.yaml; then
   ci_test "the unit tests run without credentials" \
     '.jobs.unit | (.steps[0].with == {"persist-credentials": false})
     and ([.steps[].run // empty] == ["tests/run.sh"])'
+  ci_test "the unit tests get the library from its step" \
+    '.jobs.unit.steps | (.[1].id == "lib")
+    and (.[2].env == {"SHELL_LIB": "${{ steps.lib.outputs.path }}"})'
   ci_test "the job check calls workflow-check pinned by commit, unnamed" \
     ".jobs.check | (.uses | test(\"$WORKFLOW_CHECK\")) and (has(\"name\") | not)"
   ci_test "check needs every other job and passes their results" \
