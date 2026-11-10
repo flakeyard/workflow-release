@@ -2,14 +2,19 @@
 # Messages of a step: errors, warnings and notices in the log, and lines of
 # the job summary.
 
-# fail MESSAGE [FILE]: report an error, about FILE if given, and exit.
-fail() {
+# error MESSAGE [FILE]: report an error, about FILE if given.
+error() {
   local message=$1 file=${2:-}
   if [[ -n $file ]]; then
     echo "::error file=$file::$message"
   else
     echo "::error::$message"
   fi
+}
+
+# fail MESSAGE [FILE]: report an error, about FILE if given, and exit.
+fail() {
+  error "$@"
   exit 1
 }
 

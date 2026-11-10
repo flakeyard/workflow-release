@@ -17,7 +17,8 @@ source "$lib/manifest.sh"
 # shellcheck source=../lib/report.sh
 source "$lib/report.sh"
 
-readonly RELEASE_HEAD=release-please--branches--$BASE
+RELEASE_HEAD=$(release_head "$BASE")
+readonly RELEASE_HEAD
 
 # is_release_pr PR: PR comes from release-please's branch for BASE. The plan
 # warns about other pull requests labelled pending.
@@ -48,7 +49,7 @@ reconcile() {
 mark_tagged() {
   local number=$1 tag=$2
   gh api --silent -X POST "repos/$REPO/issues/$number/labels" -f "labels[]=autorelease: tagged"
-  api_delete_if_exists "repos/$REPO/issues/$number/labels/autorelease:%20pending"
+  api_delete_if_exists "repos/$REPO/issues/$number/labels/$PENDING_LABEL_URL"
   summary "marked #$number as tagged: $tag exists"
 }
 

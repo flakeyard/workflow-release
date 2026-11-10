@@ -2,7 +2,7 @@
 # Static tests of the job graph of the release workflow: only the job that
 # releases, and the release pull request when it uses the App, may reach the
 # environment and the key.
-# shellcheck disable=SC2034 # current is the test that report and finish count.
+# shellcheck disable=SC2016 # jq expressions, not expansions.
 
 : "${root:?}"
 
@@ -14,19 +14,19 @@ readonly KEY_PRESENCE="secrets.APP_PRIVATE_KEY != ''"
 # of this workflow's repository, and others pinned by commit.
 readonly OWN_OR_PINNED='^(\$/\.github/actions/[a-z-]+|[a-z0-9-]+/[a-z0-9-]+@[0-9a-f]{40})$'
 
+# Helpers of the expressions of graph_check.
+readonly GRAPH_DEFS='
+  def key_references: tostring | gsub($presence; "") | contains("secrets.APP_PRIVATE_KEY");
+  def gated: has("environment");
+'
+
 # graph_check NAME FILTER: FILTER, a jq expression over the workflow, is
 # true.
 graph_check() {
   local name=$1 filter=$2
-  setup
-  current="release.yaml: $name"
-  jq -e --arg presence "$KEY_PRESENCE" --argjson key_jobs "$KEY_JOBS" \
-    --arg own_or_pinned "$OWN_OR_PINNED" "
-    def condition: (.if // \"\") | gsub(\"\\\\s+\"; \" \");
-    def key_references: tostring | gsub(\$presence; \"\") | contains(\"secrets.APP_PRIVATE_KEY\");
-    def gated: has(\"environment\");
-    $filter" <<<"$workflow" >/dev/null || report "not true: $filter"
-  finish
+  workflow_check "$workflow" "release.yaml: $name" "$GRAPH_DEFS $filter" \
+    --arg presence "$KEY_PRESENCE" --argjson key_jobs "$KEY_JOBS" \
+    --arg own_or_pinned "$OWN_OR_PINNED"
 }
 
 if require_yq release.yaml; then
