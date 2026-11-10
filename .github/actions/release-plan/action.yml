@@ -5,6 +5,11 @@ description: >-
   failed or never ran, or when vX must be created or moved forward. Fails when
   a pending release can no longer be published from the run of its commit.
 inputs:
+  shell-lib:
+    description: >-
+      Directory of action-shell-lib: the output path of its step in the job,
+      whose modules the scripts source.
+    required: true
   token:
     required: true
   manifest-file:
@@ -25,6 +30,7 @@ runs:
     - id: plan
       shell: bash
       env:
+        SHELL_LIB: ${{ inputs.shell-lib }}
         GH_TOKEN: ${{ inputs.token }}
         REPO: ${{ github.repository }}
         BASE: ${{ github.ref_name }}

@@ -4,6 +4,11 @@ description: >-
   branch, the App inputs are complete where the key is visible, and the
   release-please configuration is supported.
 inputs:
+  shell-lib:
+    description: >-
+      Directory of action-shell-lib: the output path of its step in the job,
+      whose modules the scripts source.
+    required: true
   app-client-id:
     description: Client ID of the App, or empty.
     required: true
@@ -30,6 +35,7 @@ runs:
       name: Check the run
       shell: bash
       env:
+        SHELL_LIB: ${{ inputs.shell-lib }}
         CLIENT_ID: ${{ inputs.app-client-id }}
         HAS_KEY: ${{ inputs.has-key }}
         KEY_VISIBLE: ${{ inputs.key-visible }}
@@ -41,6 +47,7 @@ runs:
       if: ${{ steps.run.outputs.skip != 'true' }}
       shell: bash
       env:
+        SHELL_LIB: ${{ inputs.shell-lib }}
         GH_TOKEN: ${{ github.token }}
         REPO: ${{ github.repository }}
         SHA: ${{ github.sha }}

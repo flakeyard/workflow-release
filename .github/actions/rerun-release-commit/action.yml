@@ -3,6 +3,11 @@ description: >-
   Reruns the push run of a release's commit when this run created the release,
   so that the run at the release commit publishes it.
 inputs:
+  shell-lib:
+    description: >-
+      Directory of action-shell-lib: the output path of its step in the job,
+      whose modules the scripts source.
+    required: true
   tag:
     description: Tag of the release.
     required: true
@@ -17,6 +22,7 @@ runs:
   steps:
     - shell: bash
       env:
+        SHELL_LIB: ${{ inputs.shell-lib }}
         GH_TOKEN: ${{ github.token }}
         REPO: ${{ github.repository }}
         RUN_ID: ${{ github.run_id }}

@@ -2,7 +2,8 @@
 # release and the moving major tag in sync, and maintains the release pull
 # request. Only the job that releases uses the environment, and with one it
 # runs only when a job without the key has found it due. Each step's logic
-# lives in .github/actions.
+# lives in .github/actions. Each job calls action-shell-lib once, as its first
+# step, and passes its path to those actions, which source its modules.
 name: release
 
 on:
@@ -100,9 +101,13 @@ jobs:
       planned: ${{ steps.plan.outcome == 'success' }}
       due: ${{ steps.plan.outputs.due }}
     steps:
+      - id: lib
+        uses: flakeyard/action-shell-lib@3bad257f744402ce4627954c4250171150ffb54d # v0.1.1
+
       - id: preflight
         uses: $/.github/actions/preflight
         with:
+          shell-lib: ${{ steps.lib.outputs.path }}
           app-client-id: ${{ inputs.app-client-id }}
           has-key: ${{ secrets.APP_PRIVATE_KEY != '' }}
           # A secret of the environment is not visible in this job.
@@ -113,6 +118,7 @@ jobs:
       - if: ${{ steps.preflight.outputs.skip != 'true' }}
         uses: $/.github/actions/reconcile-pending-prs
         with:
+          shell-lib: ${{ steps.lib.outputs.path }}
           token: ${{ github.token }}
           manifest-file: ${{ inputs.manifest-file }}
 
@@ -120,6 +126,7 @@ jobs:
         if: ${{ steps.preflight.outputs.skip != 'true' }}
         uses: $/.github/actions/release-plan
         with:
+          shell-lib: ${{ steps.lib.outputs.path }}
           token: ${{ github.token }}
           manifest-file: ${{ inputs.manifest-file }}
           environment: ${{ inputs.environment }}
@@ -151,9 +158,13 @@ jobs:
       created-tag: ${{ steps.rp.outputs.tag_name }}
       rp-failed: ${{ steps.rp.outcome == 'failure' }}
     steps:
+      - id: lib
+        uses: flakeyard/action-shell-lib@3bad257f744402ce4627954c4250171150ffb54d # v0.1.1
+
       - id: token
         uses: $/.github/actions/token
         with:
+          shell-lib: ${{ steps.lib.outputs.path }}
           app-client-id: ${{ inputs.app-client-id }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
@@ -161,6 +172,7 @@ jobs:
       # approval.
       - uses: $/.github/actions/reconcile-pending-prs
         with:
+          shell-lib: ${{ steps.lib.outputs.path }}
           token: ${{ steps.token.outputs.token }}
           manifest-file: ${{ inputs.manifest-file }}
 
@@ -179,6 +191,7 @@ jobs:
       - if: ${{ !cancelled() && inputs.move-major-tag && steps.token.outcome == 'success' }}
         uses: $/.github/actions/sync-major-tag
         with:
+          shell-lib: ${{ steps.lib.outputs.path }}
           token: ${{ steps.token.outputs.token }}
           manifest-file: ${{ inputs.manifest-file }}
 
@@ -196,11 +209,15 @@ jobs:
       elsewhere-sha: ${{ steps.state.outputs.elsewhere-sha }}
       elsewhere-created: ${{ steps.state.outputs.elsewhere-created }}
     steps:
+      - id: lib
+        uses: flakeyard/action-shell-lib@3bad257f744402ce4627954c4250171150ffb54d # v0.1.1
+
       # A job that failed inside release-please has no outputs; it may still
       # have released an older commit.
       - id: state
         uses: $/.github/actions/release-state
         with:
+          shell-lib: ${{ steps.lib.outputs.path }}
           token: ${{ github.token }}
           manifest-file: ${{ inputs.manifest-file }}
           created: ${{ needs.release.outputs.created }}
@@ -227,8 +244,12 @@ jobs:
     permissions:
       contents: write # mark the newest release as latest
     steps:
+      - id: lib
+        uses: flakeyard/action-shell-lib@3bad257f744402ce4627954c4250171150ffb54d # v0.1.1
+
       - uses: $/.github/actions/keep-latest
         with:
+          shell-lib: ${{ steps.lib.outputs.path }}
           token: ${{ github.token }}
 
   # A run that waited in the queue can release an older commit. The run of
@@ -243,8 +264,12 @@ jobs:
       actions: write # rerun the run of the release commit
       contents: read # read the release
     steps:
+      - id: lib
+        uses: flakeyard/action-shell-lib@3bad257f744402ce4627954c4250171150ffb54d # v0.1.1
+
       - uses: $/.github/actions/rerun-release-commit
         with:
+          shell-lib: ${{ steps.lib.outputs.path }}
           tag: ${{ needs.state.outputs.elsewhere-tag }}
           sha: ${{ needs.state.outputs.elsewhere-sha }}
           created: ${{ needs.state.outputs.elsewhere-created }}
@@ -269,9 +294,13 @@ jobs:
       issues: write # labels
       pull-requests: write # the release pull request
     steps:
+      - id: lib
+        uses: flakeyard/action-shell-lib@3bad257f744402ce4627954c4250171150ffb54d # v0.1.1
+
       - id: token
         uses: $/.github/actions/token
         with:
+          shell-lib: ${{ steps.lib.outputs.path }}
           app-client-id: ${{ inputs.app-pull-requests && inputs.app-client-id || '' }}
           private-key: ${{ inputs.app-pull-requests && secrets.APP_PRIVATE_KEY || '' }}
 
@@ -294,6 +323,10 @@ jobs:
       actions: write # start the check workflow
       pull-requests: read # find the release pull request
     steps:
+      - id: lib
+        uses: flakeyard/action-shell-lib@3bad257f744402ce4627954c4250171150ffb54d # v0.1.1
+
       - uses: $/.github/actions/dispatch-checks
         with:
+          shell-lib: ${{ steps.lib.outputs.path }}
           check-workflow: ${{ inputs.check-workflow }}

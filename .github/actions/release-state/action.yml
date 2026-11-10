@@ -4,6 +4,11 @@ description: >-
   the release tag, so that a rerun after a failure reports it again; and a
   release that this run created at an older commit.
 inputs:
+  shell-lib:
+    description: >-
+      Directory of action-shell-lib: the output path of its step in the job,
+      whose modules the scripts source.
+    required: true
   token:
     required: true
   manifest-file:
@@ -40,6 +45,7 @@ runs:
     - id: state
       shell: bash
       env:
+        SHELL_LIB: ${{ inputs.shell-lib }}
         GH_TOKEN: ${{ inputs.token }}
         REPO: ${{ github.repository }}
         SHA: ${{ github.sha }}

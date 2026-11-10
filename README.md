@@ -397,22 +397,26 @@ referenced with `$/`:
   updates it.
 
 Each action runs its `run.sh`, or one script per check when it has several
-(`preflight/inputs.sh` and `preflight/config.sh`). The scripts source the
-helpers in `lib`: `lib/github/` calls the GitHub API (`api.sh`, `contents.sh`,
-`tags.sh`, `releases.sh`, `pulls.sh`, `runs.sh`), `lib/manifest.sh` reads the
-release-please manifest, `lib/app-key.sh` checks the App inputs,
-`lib/major-tag.sh` works out how `vX` has to change, `lib/clock.sh` measures
-ages and `lib/report.sh` reports errors, warnings, notices and the job summary.
-`tests/run.sh` tests them with the stubs in `tests/bin`; the suites in
+(`preflight/inputs.sh` and `preflight/config.sh`). Each job first calls
+[action-shell-lib][action-shell-lib] once, pinned by commit, and passes its
+directory to the actions as the input `shell-lib`, which they give to their
+scripts as `SHELL_LIB`; the actions do not call the library themselves. The
+scripts source the helpers in `lib`: `lib/github/` calls the GitHub API
+(`api.sh`, `contents.sh`, `tags.sh`, `releases.sh`, `pulls.sh`, `runs.sh`),
+`lib/manifest.sh` reads the release-please manifest, `lib/app-key.sh` checks the
+App inputs, `lib/major-tag.sh` works out how `vX` has to change, `lib/clock.sh`
+measures ages and `lib/report.sh` reports errors, warnings, notices and the job
+summary. `tests/run.sh` tests them with the stubs in `tests/bin`; the suites in
 `tests/unit` mirror the actions and share the helpers in `tests/lib`.
 `tests/unit/workflows` has one file per workflow. `release.sh` checks the job
 graph: only `Release` and, with the App, `Release pull request` reach the
 environment and the key, `Release` runs only when it is due or there is no
-environment, and no job with an environment runs code of the repository; the
-others check that the repository's own workflows call workflow-check and
-workflow-scorecard as [FY-0034][fy-0034] asks. They read the workflows with
-mikefarah `yq` v4, which GitHub-hosted runners have, and fail without it;
-locally, run `nix shell nixpkgs#yq-go -c tests/run.sh`.
+environment, no job with an environment runs code of the repository, and every
+job passes the library to the actions that need it; the others check that the
+repository's own workflows call workflow-check and workflow-scorecard as
+[FY-0034][fy-0034] asks. They read the workflows with mikefarah `yq` v4, which
+GitHub-hosted runners have, and fail without it; locally, run
+`nix shell nixpkgs#yq-go -c tests/run.sh`.
 
 The repository checks itself with [`test.yaml`](.github/workflows/test.yaml):
 its job `unit` runs `tests/run.sh`, and the job `check` calls
@@ -428,8 +432,8 @@ not yet know the `$/` syntax and `queue: max` and reports them as errors. The
 design follows
 [FY-0007](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0007-branching-and-releases.md),
 [FY-0028](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0028-supply-chain.md),
-[FY-0030](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0030-actions-workflows-and-release-bot.md)
-and [FY-0034][fy-0034].
+[FY-0030](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0030-actions-workflows-and-release-bot.md),
+[FY-0034][fy-0034] and [FY-0035][fy-0035].
 
 ## Bootstrap
 
@@ -444,5 +448,8 @@ some checks of this repository are not released yet. Until they are:
 
 [MIT](LICENSE).
 
+[action-shell-lib]: https://github.com/flakeyard/action-shell-lib
 [fy-0034]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0034-check-every-repository-with-workflow-check.md
+[fy-0035]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0035-extract-logic-that-has-two-users.md
