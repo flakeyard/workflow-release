@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.5](https://github.com/flakeyard/workflow-release/compare/v0.2.4...v0.2.5) (2026-11-11)
+
+
+### Bug Fixes
+
+* **deps:** update flakeyard/action-shell-lib action to v0.1.2 ([#47](https://github.com/flakeyard/workflow-release/issues/47)) ([cadf994](https://github.com/flakeyard/workflow-release/commit/cadf99456430ddb2bc3ec57fb78a6225486e33a3))
+* **deps:** update flakeyard/action-shell-lib action to v0.1.3 ([#51](https://github.com/flakeyard/workflow-release/issues/51)) ([20d040a](https://github.com/flakeyard/workflow-release/commit/20d040ac1b97732f7961d4ac21a7e2605c67d509))
+
 ## [0.2.4](https://github.com/flakeyard/workflow-release/compare/v0.2.3...v0.2.4) (2026-11-10)
 
 
