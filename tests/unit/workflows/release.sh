@@ -51,7 +51,7 @@ graph_check() {
 }
 
 if require_yq .github/workflows/release.yaml; then
-  workflow=$(load_yaml .github/workflows/release.yaml)
+  workflow=$(load_workflow release.yaml)
   actions=$(internal_actions)
 
   graph_check "only the release jobs use an environment" \

@@ -7,7 +7,7 @@
 self_test() { workflow_check "$self_workflow" "release-self.yaml: $1" "$2"; }
 
 if require_yq .github/workflows/release-self.yaml; then
-  self_workflow=$(load_yaml .github/workflows/release-self.yaml)
+  self_workflow=$(load_workflow release-self.yaml)
   self_test "release pull requests are opened with GITHUB_TOKEN" \
     '.jobs.release.with["app-pull-requests"] == false'
   self_test "release pull requests are checked by test.yaml" \

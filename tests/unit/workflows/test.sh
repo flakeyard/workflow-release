@@ -13,7 +13,7 @@ readonly WORKFLOW_CHECK='^flakeyard/workflow-check/\\.github/workflows/check\\.y
 ci_test() { workflow_check "$ci_workflow" "test.yaml: $1" "$2"; }
 
 if require_yq .github/workflows/test.yaml; then
-  ci_workflow=$(load_yaml .github/workflows/test.yaml)
+  ci_workflow=$(load_workflow test.yaml)
   ci_test "no permissions at the top level" '.permissions == {}'
   ci_test "the unit tests run without credentials" \
     '.jobs.unit | (.steps[0].with == {"persist-credentials": false})

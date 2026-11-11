@@ -21,6 +21,8 @@ source "$SHELL_LIB/internal/testing/fixtures.sh"
 # shellcheck source=/dev/null
 source "$SHELL_LIB/internal/testing/yaml.sh"
 # shellcheck source=/dev/null
+source "$SHELL_LIB/internal/testing/workflow.sh"
+# shellcheck source=/dev/null
 source "$SHELL_LIB/internal/testing/consumer/action.sh"
 # The scripts and the YAML files are paths in the repository.
 # shellcheck disable=SC2034 # read by internal/testing
@@ -41,8 +43,6 @@ source "$root/tests/lib/fixtures/releases.sh"
 source "$root/tests/lib/fixtures/pulls.sh"
 # shellcheck source=lib/fixtures/runs.sh
 source "$root/tests/lib/fixtures/runs.sh"
-# shellcheck source=lib/workflow.sh
-source "$root/tests/lib/workflow.sh"
 
 for suite in "$root"/tests/unit/**/*.sh; do
   # shellcheck source=/dev/null
