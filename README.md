@@ -240,10 +240,13 @@ are skipped.
 - **Jobs.** `Plan` checks the run and decides, without the key and without the
   environment, whether a release is due. `Release` creates releases and moves
   `vX`; it is the only job that uses the key, except `Release pull request` with
-  `app-pull-requests`, and it runs no code of the repository. `Release state`
-  derives the outputs from the repository. `Keep the latest release` keeps the
-  newest release marked as latest, on every branch, so that a release on
-  `release/vN` cannot take it from a newer one on another branch.
+  `app-pull-requests`, and it runs no code of the repository. release-please
+  releases every pending pull request that it finds at the head of the branch,
+  so `Release` first fails unless each of them was merged at or before the run's
+  commit; the run of a later merge commit releases them. `Release state` derives
+  the outputs from the repository. `Keep the latest release` keeps the newest
+  release marked as latest, on every branch, so that a release on `release/vN`
+  cannot take it from a newer one on another branch.
   `Publish at the release commit` reruns the run of a release commit that this
   run released. `Release pull request` updates the release pull request after
   `Release`, so that it sees a new tag, and `Start checks` starts
@@ -270,7 +273,9 @@ are skipped.
   security boundary: a wrong one costs an approval request or delays a release
   until the next push, and `Release` derives what it does from the repository.
   `Plan` writes its findings and its decision to its job summary and as notices
-  of the run, which the API can read; they are a hint, not evidence.
+  of the run, which the API can read; they are a hint, not evidence. Its
+  findings list every other pending pull request, also when a release is due,
+  since an approval releases them too.
 
 - **Unpublishable releases.** A job can wait for approval, and a run can be
   rerun, for 30 days. When the merge commit of a pending release pull request
@@ -322,13 +327,22 @@ any summary. Before approving a run at commit `SHA`:
 2. `SHA` merges a release pull request that you merged. For a takeover, the
    pending pull request is one that you merged, and its own run failed rather
    than being rejected.
-3. The release pull request changes only the manifest, `CHANGELOG.md` and the
+3. No merged pull request other than the one of step 2 is labelled
+   `autorelease: pending`: the approval releases every one of them. This lists
+   their numbers:
+
+   ```sh
+   gh api 'repos/OWNER/REPO/issues?state=closed&labels=autorelease:%20pending' \
+     --paginate --jq '.[] | select(.pull_request.merged_at) | .number'
+   ```
+
+4. The release pull request changes only the manifest, `CHANGELOG.md` and the
    version files of the configuration.
-4. `git log --format='%h %G? %an %s' vPREV..SHA` lists only signed squash
+5. `git log --format='%h %G? %an %s' vPREV..SHA` lists only signed squash
    commits of pull requests that you reviewed.
-5. `git diff vPREV..SHA -- .github/` is empty or has only changes that you
+6. `git diff vPREV..SHA -- .github/` is empty or has only changes that you
    reviewed.
-6. The caller at `SHA` references `flakeyard/workflow-release` at the commit of
+7. The caller at `SHA` references `flakeyard/workflow-release` at the commit of
    one of its release tags
    (`gh api repos/flakeyard/workflow-release/commits/vX.Y.Z --jq .sha`), not at
    a commit of another branch or of a fork.
@@ -388,6 +402,8 @@ referenced with `$/`:
 - `token`: the App token or `GITHUB_TOKEN`, after checking that the client ID
   and the key come together;
 - `reconcile-pending-prs`: release pull requests left pending by a failed run;
+- `release-scope`: before release-please, that every pending release pull
+  request was merged at or before the run's commit;
 - `release-state`: the outputs, derived from the repository, as one JSON object;
 - `rerun-release-commit`: the rerun of the run of a release commit;
 - `keep-latest`: the newest release stays latest;
@@ -418,13 +434,14 @@ otherwise `tests/run.sh` fetches it with `git` into
 mirror the actions and share the helpers in `tests/lib`. `tests/unit/workflows`
 has one file per workflow. `release.sh` checks the job graph: only `Release`
 and, with the App, `Release pull request` reach the environment and the key,
-`Release` runs only when it is due or there is no environment, no job with an
-environment runs code of the repository, every job passes the library to the
-actions that need it, and every use of the library names one commit; the others
-check that the repository's own workflows call workflow-check and
-workflow-scorecard as [FY-0034][fy-0034] asks. They read the workflows with
-mikefarah `yq` v4, which GitHub-hosted runners have, and fail without it;
-locally, run `nix shell nixpkgs#yq-go -c tests/run.sh`.
+`Release` runs only when it is due or there is no environment and runs
+release-please right after `release-scope`, no job with an environment runs code
+of the repository, every job passes the library to the actions that need it, and
+every use of the library names one commit; the others check that the
+repository's own workflows call workflow-check and workflow-scorecard as
+[FY-0034][fy-0034] asks. They read the workflows with mikefarah `yq` v4, which
+GitHub-hosted runners have, and fail without it; locally, run
+`nix shell nixpkgs#yq-go -c tests/run.sh`.
 
 The repository checks itself with [`test.yaml`](.github/workflows/test.yaml):
 its job `unit` runs `tests/run.sh`, and the job `check` calls

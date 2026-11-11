@@ -1,0 +1,24 @@
+name: Release scope
+description: >-
+  Fails unless release-please, which releases every merged pull request
+  labelled "autorelease: pending" that it finds at the head of the branch,
+  releases only pull requests merged at or before the run's commit.
+inputs:
+  shell-lib:
+    description: >-
+      Directory of action-shell-lib: the output path of its step in the job,
+      whose modules the scripts source.
+    required: true
+  token:
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        SHELL_LIB: ${{ inputs.shell-lib }}
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ github.repository }}
+        BASE: ${{ github.ref_name }}
+        SHA: ${{ github.sha }}
+      run: '"$GITHUB_ACTION_PATH/run.sh"'
