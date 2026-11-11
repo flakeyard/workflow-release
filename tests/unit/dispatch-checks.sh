@@ -26,6 +26,13 @@ run "dispatch-checks: no release PR" ok "$script"
 expect no-calls
 finish
 
+dispatch_setup main '[{"number":9}]'
+transient_failures "repos/$REPO/pulls?state=open&base=main&head=o:release-please--branches--main" 1
+run "dispatch-checks: a transient error is retried" ok "$script"
+expect sleeps 5
+expect call "workflow run check.yaml"
+finish
+
 dispatch_setup main "HTTP 500"
 run "dispatch-checks: API error fails" fail "$script"
 finish

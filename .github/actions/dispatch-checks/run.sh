@@ -12,8 +12,8 @@ source "$lib/github/pulls.sh"
 source "$SHELL_LIB/report.sh"
 
 head=$(release_head "$BASE")
-number=$(gh api "repos/$REPO/pulls?state=open&base=$BASE&head=$OWNER:$head" \
-  --jq '.[0].number // empty')
+number=$(api_get "repos/$REPO/pulls?state=open&base=$BASE&head=$OWNER:$head" \
+  | jq -r '.[0].number // empty')
 if [[ -z $number ]]; then
   summary "no open release pull request"
   exit 0
