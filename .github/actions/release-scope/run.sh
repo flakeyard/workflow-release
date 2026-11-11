@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 # Fails unless every merged pull request into BASE that is still labelled
-# pending was merged at SHA or before it. release-please, which runs next,
-# releases every such pull request at the head of BASE, so an approval of
-# this run would also release one merged after SHA. A pull request merged in
-# the seconds between this step and release-please is not caught; only
-# release-please itself could close that gap.
+# pending was merged at SHA or before it, and, when one is pending, CONFIG and
+# MANIFEST at the head of BASE are those at SHA, which the preflight checked.
+# release-please, which runs next, reads all of them at the head of BASE, so
+# an approval of this run would also release what was merged after SHA. A
+# push in the seconds between this step and release-please is not caught;
+# only release-please itself could close that gap.
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
 shopt -s inherit_errexit
 : "${SHELL_LIB:?}"
-: "${REPO:?}" "${BASE:?}" "${SHA:?}"
+: "${REPO:?}" "${BASE:?}" "${SHA:?}" "${CONFIG:?}" "${MANIFEST:?}"
 lib=$(dirname "$0")/../lib
 # shellcheck source=../lib/github/commits.sh
 source "$lib/github/commits.sh"
+# shellcheck source=../lib/github/files.sh
+source "$lib/github/files.sh"
 # shellcheck source=../lib/github/pulls.sh
 source "$lib/github/pulls.sh"
 # shellcheck source=/dev/null
@@ -32,11 +35,41 @@ check_merged_by_sha() {
   problem "#$number is labelled $PENDING_LABEL and was merged as $commit, which $SHA does not contain, so release-please would release it in this run; the run of $commit releases it"
 }
 
+# branch_head: print the commit at the head of BASE.
+branch_head() {
+  api_get "repos/$REPO/git/ref/heads/$BASE" | jq -r .object.sha
+}
+
+# check_same_file FILE HEAD: report FILE unless it is the same at HEAD as at
+# SHA.
+check_same_file() {
+  local file=$1 head=$2 at_sha at_head
+  at_sha=$(required_file "$file" "$SHA")
+  at_head=$(required_file "$file" "$head")
+  [[ $at_head == "$at_sha" ]] && return 0
+  problem "$file at $head, the head of $BASE, is not the one at $SHA, where it was checked; rerun the run of $head to take the release over" "$file"
+}
+
+# check_config_at_head: report CONFIG and MANIFEST unless they are the same at
+# the head of BASE as at SHA.
+check_config_at_head() {
+  local head
+  head=$(branch_head)
+  [[ $head != "$SHA" ]] || return 0
+  check_same_file "$CONFIG" "$head"
+  check_same_file "$MANIFEST" "$head"
+}
+
 prs=$(pending_release_prs "$BASE")
+if [[ -z $prs ]]; then
+  summary "nothing pending: release-please releases nothing"
+  exit 0
+fi
 while IFS= read -r pr; do
-  [[ -n $pr ]] || continue
   check_merged_by_sha "$pr"
 done <<<"$prs"
+check_config_at_head
 flush
 if has_problems; then exit 1; fi
-summary "every pending release pull request was merged at or before $SHA"
+summary "every pending release pull request was merged at or before $SHA," \
+  "and the configuration and the manifest at the head of $BASE are those at $SHA"

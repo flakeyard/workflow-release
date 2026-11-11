@@ -242,8 +242,11 @@ are skipped.
   `vX`; it is the only job that uses the key, except `Release pull request` with
   `app-pull-requests`, and it runs no code of the repository. release-please
   releases every pending pull request that it finds at the head of the branch,
-  so `Release` first fails unless each of them was merged at or before the run's
-  commit; the run of a later merge commit releases them. `Release state` derives
+  with the configuration and the manifest there, so `Release` first fails unless
+  each of them was merged at or before the run's commit and, when one is
+  pending, the configuration and the manifest at the head are those at that
+  commit. The run of a later merge commit releases such a pull request, and a
+  rerun of the run of the head takes the release over. `Release state` derives
   the outputs from the repository. `Keep the latest release` keeps the newest
   release marked as latest, on every branch, so that a release on `release/vN`
   cannot take it from a newer one on another branch.
@@ -403,7 +406,8 @@ referenced with `$/`:
   and the key come together;
 - `reconcile-pending-prs`: release pull requests left pending by a failed run;
 - `release-scope`: before release-please, that every pending release pull
-  request was merged at or before the run's commit;
+  request was merged at or before the run's commit, and that the configuration
+  and the manifest at the head of the branch are those at that commit;
 - `release-state`: the outputs, derived from the repository, as one JSON object;
 - `rerun-release-commit`: the rerun of the run of a release commit;
 - `keep-latest`: the newest release stays latest;
