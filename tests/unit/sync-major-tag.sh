@@ -43,6 +43,16 @@ finish
 
 sync_setup 1.10.0
 tag v1.10.0 c110
+tag v1 c19
+fixture "repos/$REPO/compare/c19...c110" '{"status":"ahead"}'
+transient_failures "repos/$REPO/compare/c19...c110" 1
+run "sync-major-tag: a transient error of the comparison is retried" ok "$script"
+expect sleeps 5
+expect call "PATCH repos/$REPO/git/refs/tags/v1 sha=c110 force=true"
+finish
+
+sync_setup 1.10.0
+tag v1.10.0 c110
 annotated_tag v1 t1 c19
 fixture "repos/$REPO/compare/c19...c110" '{"status":"ahead"}'
 run "sync-major-tag: moves an annotated tag" ok "$script"

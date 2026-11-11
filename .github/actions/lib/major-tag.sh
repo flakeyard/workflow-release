@@ -1,6 +1,9 @@
 # shellcheck shell=bash source-path=SCRIPTDIR
-# The moving tag vX of a major version. Source this file; it expects REPO.
+# The moving tag vX of a major version. Source this file; it expects SHELL_LIB
+# and REPO.
 
+# shellcheck source=github/commits.sh
+source "${BASH_SOURCE[0]%/*}/github/commits.sh"
 # shellcheck source=github/releases.sh
 source "${BASH_SOURCE[0]%/*}/github/releases.sh"
 # shellcheck source=github/tags.sh
@@ -36,7 +39,7 @@ tag_change() {
   elif [[ $current == "$target" ]]; then
     echo current
   else
-    relation=$(gh api "repos/$REPO/compare/$current...$target" --jq .status)
+    relation=$(compare_status "$current" "$target")
     if [[ $relation == ahead ]]; then echo move; else echo "$relation"; fi
   fi
 }
