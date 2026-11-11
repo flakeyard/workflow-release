@@ -113,6 +113,31 @@ run "release-plan: this push merged a pending release pull request" ok "$script"
 expect_due true release
 finish
 
+# An approval releases every pending pull request, so the plan lists the
+# others also when this push is due.
+plan_setup
+fixture "repos/$REPO/commits/$SHA/pulls" "[$(pr_json 4 "$SHA")]"
+manifest 1.3.0
+pending "$(pr_json 4 "$SHA")" "$(pr_json 5 m5)"
+manifest 1.2.4 m5
+merge_run m5 in_progress
+run "release-plan: lists the other pending pull requests when due" ok "$script"
+expect_due true release
+expect summary "- also pending: #5 \`chore(main): release\`, merged as m5"
+expect no-message "also pending: #4"
+finish
+
+# An approval would also release #5, whose run can never publish it.
+plan_setup
+fixture "repos/$REPO/commits/$SHA/pulls" "[$(pr_json 4 "$SHA")]"
+manifest 1.3.0
+pending "$(pr_json 4 "$SHA")" "$(pr_json 5 m5)"
+manifest 1.2.4 m5
+fixture "$(commit_runs_path main m5)" '{"workflow_runs":[]}'
+run "release-plan: due, but another pending release is unpublishable" fail "$script"
+expect message "the release of #5 at m5 can never be published"
+finish
+
 plan_setup
 fixture "repos/$REPO/commits/$SHA/pulls" "[$(pr_json 4 "$SHA" "$head" release/v1)]"
 run "release-plan: merged into another branch" ok "$script"
@@ -215,8 +240,8 @@ for status in queued in_progress waiting pending requested; do
   finish
 done
 
-# Twelve pending pull requests whose runs are still running: twelve findings,
-# more than a step keeps as notices.
+# Twelve pending pull requests whose runs are still running: two findings
+# each, more than a step keeps as notices.
 plan_setup
 prs=()
 for number in {11..22}; do prs+=("$(pr_json "$number" "m$number")"); done
@@ -225,7 +250,7 @@ for number in {11..22}; do merge_run "m$number" in_progress; done
 run "release-plan: the limit of notices does not hide the decision" ok "$script"
 expect_due false
 expect_first_notice "No release due."
-expect message "::notice::4 more notices are not shown here."
+expect message "::notice::16 more notices are not shown here."
 finish
 
 takeover_setup

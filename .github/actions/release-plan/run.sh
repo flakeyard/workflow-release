@@ -165,14 +165,16 @@ check_pending() {
 }
 
 # check_pending_pr PR WINDOW: check a pending pull request that SHA did not
-# merge. One that release-please would not release only gets a warning, so
-# that it does not ask for approval on every push.
+# merge, and list it: release-please releases it too when the job that
+# releases runs. One that release-please would not release only gets a
+# warning, so that it does not ask for approval on every push.
 check_pending_pr() {
   local pr=$1 window=$2 number commit head
   number=$(jq -r .number <<<"$pr")
   commit=$(jq -r .merge_commit_sha <<<"$pr")
   head=$(jq -r .head.ref <<<"$pr")
   [[ $commit != "$SHA" ]] || return 0
+  note "also pending: $(describe "$pr")"
   if [[ $head != "$RELEASE_HEAD" ]]; then
     warning "#$number is labelled $PENDING_LABEL but is not from $RELEASE_HEAD, so it releases nothing; remove the label"
   elif ! in_window "$number" "$window"; then
@@ -317,6 +319,7 @@ this_run=$(workflow_run "$RUN_ID")
 workflow=$(jq -r .workflow_id <<<"$this_run")
 started=$(jq -r .created_at <<<"$this_run")
 check_release
-if [[ $due == false ]]; then check_pending; fi
+# Also when due: an approval releases every pending pull request.
+check_pending
 if [[ $due == false && $MOVE_MAJOR_TAG == true ]]; then check_repair; fi
 write_decision

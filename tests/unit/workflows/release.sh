@@ -70,6 +70,10 @@ if require_yq .github/workflows/release.yaml; then
   # the release also without an environment.
   graph_check "release does not run when the plan failed, with or without an environment" \
     ".jobs.release | condition | startswith(\"\${{ !cancelled() && needs.plan.outputs.planned == 'true' && (\")"
+  # release-please releases what it finds at the head of the branch.
+  graph_check "release-please runs right after the release scope is checked" \
+    '.jobs.release.steps | (map(.id == "rp") | index(true)) as $rp
+    | $rp > 0 and .[$rp - 1].uses == "$/.github/actions/release-scope"'
   graph_check "jobs with an environment run no code of the repository" \
     "[.jobs[] | select(gated) | .steps[] | select(has(\"run\") or ((.uses // \"\") | test(\$own_or_pinned) | not))] == []"
   graph_check "jobs with an environment check out nothing" \

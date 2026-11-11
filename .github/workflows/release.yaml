@@ -176,6 +176,15 @@ jobs:
           token: ${{ steps.token.outputs.token }}
           manifest-file: ${{ inputs.manifest-file }}
 
+      # release-please releases what it finds at the head of the branch,
+      # which can be ahead of the commit that was approved.
+      - uses: $/.github/actions/release-scope
+        with:
+          shell-lib: ${{ steps.lib.outputs.path }}
+          token: ${{ github.token }}
+          config-file: ${{ inputs.config-file }}
+          manifest-file: ${{ inputs.manifest-file }}
+
       - id: rp
         name: Create releases
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
