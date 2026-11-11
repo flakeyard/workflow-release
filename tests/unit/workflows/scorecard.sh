@@ -10,7 +10,7 @@ readonly WORKFLOW_SCORECARD='^flakeyard/workflow-scorecard/\\.github/workflows/s
 scorecard_test() { workflow_check "$scorecard_workflow" "scorecard.yaml: $1" "$2"; }
 
 if require_yq .github/workflows/scorecard.yaml; then
-  scorecard_workflow=$(load_yaml .github/workflows/scorecard.yaml)
+  scorecard_workflow=$(load_workflow scorecard.yaml)
   scorecard_test "no permissions at the top level" '.permissions == {}'
   scorecard_test "runs on main, weekly and on dispatch, and on nothing else" \
     '.on | (keys == ["push","schedule","workflow_dispatch"])

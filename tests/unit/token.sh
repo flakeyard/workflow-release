@@ -25,7 +25,7 @@ token_case "key without client ID" fail HAS_KEY=true \
 # The permissions that the token of the App asks for.
 if require_yq .github/actions/token/action.yml; then
   token_action=$(load_yaml .github/actions/token/action.yml)
-  workflow_check "$token_action" "token: the App token may write contents, issues, pull requests and workflows" \
+  yaml_check "$token_action" "token: the App token may write contents, issues, pull requests and workflows" \
     '[.runs.steps[] | select(.id == "app") | .with | to_entries[] | select(.key | startswith("permission-"))] | from_entries
       == {"permission-contents": "write", "permission-issues": "write", "permission-pull-requests": "write", "permission-workflows": "write"}'
 fi
