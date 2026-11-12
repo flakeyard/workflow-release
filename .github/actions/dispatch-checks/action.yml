@@ -13,7 +13,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - shell: bash
+    - shell: /usr/bin/bash --noprofile --norc -p -e -o pipefail {0}
       env:
         SHELL_LIB: ${{ inputs.shell-lib }}
         GH_TOKEN: ${{ github.token }}
@@ -21,4 +21,7 @@ runs:
         OWNER: ${{ github.repository_owner }}
         BASE: ${{ github.ref_name }}
         WORKFLOW: ${{ inputs.check-workflow }}
-      run: '"$GITHUB_ACTION_PATH/run.sh"'
+      run: >-
+        /usr/bin/bash -p "$SHELL_LIB/run-step.sh"
+        "$GITHUB_ACTION_PATH/scripts/step" dispatch-checks GH_TOKEN REPO OWNER
+        BASE WORKFLOW GITHUB_STEP_SUMMARY
