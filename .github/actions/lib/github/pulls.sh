@@ -22,9 +22,9 @@ release_head() {
 pending_release_prs() {
   local base=$1 numbers number pr
   # The label is filtered by the API, so only pending pull requests are listed.
-  numbers=$(gh api --paginate \
+  numbers=$(api_get \
     "repos/$REPO/issues?state=closed&labels=$PENDING_LABEL_URL&per_page=100" \
-    --jq '.[] | select(.pull_request.merged_at != null) | .number')
+    --paginate --jq '.[] | select(.pull_request.merged_at != null) | .number')
   for number in $numbers; do
     pr=$(api_get "repos/$REPO/pulls/$number")
     jq -c --arg base "$base" 'select(.base.ref == $base)' <<<"$pr"

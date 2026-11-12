@@ -76,6 +76,14 @@ run "sync-major-tag: newest release on a later page" ok "$script"
 expect call "POST repos/$REPO/git/refs ref=refs/tags/v2 sha=c200"
 finish
 
+sync_setup 2.0.0
+tag v2.0.0 c200
+transient_failures "repos/$REPO/releases?per_page=100" 1
+run "sync-major-tag: a transient error of the list of releases is retried" ok "$script"
+expect sleeps 5
+expect call "POST repos/$REPO/git/refs ref=refs/tags/v2 sha=c200"
+finish
+
 sync_setup 0.2.0
 tag v0.2.0 c020
 run "sync-major-tag: v0 follows pre-releases" ok "$script"
