@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of reconcile-pending-prs.
 
-script=.github/actions/reconcile-pending-prs/run.sh
+step=reconcile-pending-prs
 
 # pr NUMBER BASE VERSION [HEAD]: a pull request from HEAD, release-please's
 # branch by default, merged into BASE as commit mNUMBER, where the manifest has
@@ -31,7 +31,7 @@ reconcile_setup() {
 reconcile_setup
 release v1.2.0
 release v1.1.1
-run "reconcile: relabels merged PRs into the branch whose release exists" ok "$script"
+run_step "reconcile: relabels merged PRs into the branch whose release exists" ok "$ACTIONS/$step" "$step"
 expect call "POST repos/$REPO/issues/5/labels labels[]=autorelease: tagged"
 expect call "DELETE repos/$REPO/issues/5/labels/autorelease:%20pending"
 order "POST repos/$REPO/issues/5" "DELETE repos/$REPO/issues/5"
@@ -44,7 +44,7 @@ reconcile_setup
 release v1.2.0
 # v1.3.0 is a draft: the API answers by tag with HTTP 404.
 releases '[{"tag_name":"v1.3.0","draft":true,"prerelease":false}]'
-run "reconcile: draft release" ok "$script"
+run_step "reconcile: draft release" ok "$ACTIONS/$step" "$step"
 expect call "POST repos/$REPO/issues/5/labels"
 expect no-call "issues/6/"
 finish
@@ -52,33 +52,33 @@ finish
 reconcile_setup
 release v1.2.0
 apply FAIL_ON="DELETE repos/$REPO/issues/5/labels/autorelease:%20pending 404"
-run "reconcile: pending label already removed" ok "$script"
+run_step "reconcile: pending label already removed" ok "$ACTIONS/$step" "$step"
 expect call "DELETE repos/$REPO/issues/5/labels/autorelease:%20pending"
 finish
 
 reconcile_setup
 release v1.2.0
 apply FAIL_ON="DELETE repos/$REPO/issues/5/labels/autorelease:%20pending"
-run "reconcile: removing the label fails" fail "$script"
+run_step "reconcile: removing the label fails" fail "$ACTIONS/$step" "$step"
 expect message "HTTP 502"
 finish
 
 reconcile_setup
 release v1.2.0
 apply FAIL_ON="POST repos/$REPO/issues/5/labels"
-run "reconcile: adding the label fails" fail "$script"
+run_step "reconcile: adding the label fails" fail "$ACTIONS/$step" "$step"
 expect no-call "DELETE"
 finish
 
 reconcile_setup
 fixture "repos/$REPO/releases/tags/v1.2.0" "HTTP 500"
-run "reconcile: API error fails" fail "$script"
+run_step "reconcile: API error fails" fail "$ACTIONS/$step" "$step"
 finish
 
 start_test
 apply BASE=main
 pending_prs '[]'
-run "reconcile: nothing pending" ok "$script"
+run_step "reconcile: nothing pending" ok "$ACTIONS/$step" "$step"
 expect no-calls
 finish
 
@@ -90,7 +90,7 @@ transient_failures "$(pending_path)" 1
 pr 5 main 1.2.0
 pr 6 main 1.3.0
 release v1.3.0
-run "reconcile: a transient error of the pending list is retried" ok "$script"
+run_step "reconcile: a transient error of the pending list is retried" ok "$ACTIONS/$step" "$step"
 expect sleeps 5
 expect call "POST repos/$REPO/issues/6/labels"
 expect no-call "issues/5/"
@@ -100,7 +100,7 @@ finish
 # cannot read.
 start_test
 apply BASE=main
-run "reconcile: a missing pending list fails" fail "$script"
+run_step "reconcile: a missing pending list fails" fail "$ACTIONS/$step" "$step"
 expect message "$(pending_path): Not Found (HTTP 404)"
 finish
 
@@ -109,7 +109,7 @@ apply BASE=release/v1
 pending_prs '[{"number":9,"pull_request":{"merged_at":"x"}}]'
 pr 9 release/v1 1.1.1
 release v1.1.1
-run "reconcile: release branch" ok "$script"
+run_step "reconcile: release branch" ok "$ACTIONS/$step" "$step"
 expect call "POST repos/$REPO/issues/9/labels"
 finish
 
@@ -118,7 +118,7 @@ apply BASE=main
 pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
 pr 3 main 1.2.0 feature
 release v1.2.0
-run "reconcile: pending label on a pull request from another head branch" ok "$script"
+run_step "reconcile: pending label on a pull request from another head branch" ok "$ACTIONS/$step" "$step"
 expect no-calls
 finish
 
@@ -127,7 +127,7 @@ start_test
 apply BASE=main
 pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
 pull "$(pr_json 3 m3)"
-run "reconcile: no manifest at the merge commit" ok "$script"
+run_step "reconcile: no manifest at the merge commit" ok "$ACTIONS/$step" "$step"
 expect no-calls
 finish
 
@@ -142,7 +142,7 @@ no_version_case() {
   pull "$(pr_json 3 m3)"
   file_fixture "$REPO" "$MANIFEST" m3 "$content"
   [[ -z $tag ]] || release "$tag"
-  run "reconcile: root version $name" ok "$script"
+  run_step "reconcile: root version $name" ok "$ACTIONS/$step" "$step"
   expect no-calls
   finish
 }
@@ -157,6 +157,13 @@ apply BASE=main
 pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
 pull "$(pr_json 3 m3)"
 fixture "repos/$REPO/contents/$MANIFEST?ref=m3" "HTTP 500"
-run "reconcile: API error reading the manifest fails" fail "$script"
+run_step "reconcile: API error reading the manifest fails" fail "$ACTIONS/$step" "$step"
 expect message "HTTP 500"
+finish
+
+reconcile_setup
+release v1.2.0
+run_hostile "reconcile: earlier steps of the job run no code in it" ok "$ACTIONS/$step" "$step"
+expect call "POST repos/$REPO/issues/5/labels labels[]=autorelease: tagged"
+expect summary "marked #5 as tagged: v1.2.0 exists"
 finish

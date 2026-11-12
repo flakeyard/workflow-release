@@ -12,22 +12,26 @@
 # releases derives what it does from the repository.
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
-shopt -s inherit_errexit
 : "${SHELL_LIB:?}"
 : "${REPO:?}" "${BASE:?}" "${SHA:?}" "${RUN_ID:?}" "${MANIFEST:?}"
 : "${ENVIRONMENT?}" "${MOVE_MAJOR_TAG:?}"
-lib=$(dirname "$0")/../lib
-# shellcheck source=../lib/github/pulls.sh
+# The tools of the runner, LC_ALL=C and inherit_errexit.
+# shellcheck source=/dev/null
+source "$SHELL_LIB/env.sh"
+step_environment
+# From $0, which no variable of the job can set (ADR-0001).
+lib=${0%/*}/../../../lib
+# shellcheck source=../../../lib/github/pulls.sh
 source "$lib/github/pulls.sh"
-# shellcheck source=../lib/github/releases.sh
+# shellcheck source=../../../lib/github/releases.sh
 source "$lib/github/releases.sh"
-# shellcheck source=../lib/github/runs.sh
+# shellcheck source=../../../lib/github/runs.sh
 source "$lib/github/runs.sh"
-# shellcheck source=../lib/clock.sh
+# shellcheck source=../../../lib/clock.sh
 source "$lib/clock.sh"
-# shellcheck source=../lib/major-tag.sh
+# shellcheck source=../../../lib/major-tag.sh
 source "$lib/major-tag.sh"
-# shellcheck source=../lib/manifest.sh
+# shellcheck source=../../../lib/manifest.sh
 source "$lib/manifest.sh"
 # shellcheck source=/dev/null
 source "$SHELL_LIB/report.sh"
