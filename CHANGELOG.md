@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.7](https://github.com/flakeyard/workflow-release/compare/v0.2.6...v0.2.7) (2026-11-12)
+
+
+### Bug Fixes
+
+* **deps:** update flakeyard/action-shell-lib action to v0.2.0 ([#64](https://github.com/flakeyard/workflow-release/issues/64)) ([2e9eb69](https://github.com/flakeyard/workflow-release/commit/2e9eb69eee0546ea58d8f029ea87999f5198e340))
+* **deps:** update flakeyard/action-shell-lib action to v0.3.0 ([#67](https://github.com/flakeyard/workflow-release/issues/67)) ([3481553](https://github.com/flakeyard/workflow-release/commit/3481553002e4108b9d2c2b721e99de906f4f4e2e))
+* retry transient errors of the lists of pending pull requests and of releases ([#66](https://github.com/flakeyard/workflow-release/issues/66)) ([7772c04](https://github.com/flakeyard/workflow-release/commit/7772c042c43ccc4c354d58f9dce81ef878ec0498))
+* run the actions of the plan job through run-step.sh of the shell library ([#69](https://github.com/flakeyard/workflow-release/issues/69)) ([27bb053](https://github.com/flakeyard/workflow-release/commit/27bb053b44f7e808e3d659f0b3d4f3a00bf2a2d0))
+* run the state, latest, rerun and dispatch actions through run-step.sh ([#71](https://github.com/flakeyard/workflow-release/issues/71)) ([bdc203d](https://github.com/flakeyard/workflow-release/commit/bdc203d02fe35e52ebcc22fa3940aeeeea019eba))
+* run the token, scope, major tag and release pull request actions through run-step.sh ([#70](https://github.com/flakeyard/workflow-release/issues/70)) ([687fed2](https://github.com/flakeyard/workflow-release/commit/687fed23a8cf392dec841762e6dd6574a65c6cf1))
+* update action-shell-lib to v0.3.1 and record ADR-0001 ([#68](https://github.com/flakeyard/workflow-release/issues/68)) ([95b54d1](https://github.com/flakeyard/workflow-release/commit/95b54d10eff3095b3b28aee94ceac3d9650c0399))
+
 ## [0.2.6](https://github.com/flakeyard/workflow-release/compare/v0.2.5...v0.2.6) (2026-11-11)
 
 
