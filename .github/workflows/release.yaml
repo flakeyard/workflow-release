@@ -102,7 +102,7 @@ jobs:
       due: ${{ steps.plan.outputs.due }}
     steps:
       - id: lib
-        uses: flakeyard/action-shell-lib@d2f4905ffa8bcea6bb6be2928d90db9037d5bdef # v0.3.0
+        uses: flakeyard/action-shell-lib@5c59164109499a225af9b75488caf142802add84 # v0.3.1
 
       - id: preflight
         uses: $/.github/actions/preflight
@@ -159,7 +159,7 @@ jobs:
       rp-failed: ${{ steps.rp.outcome == 'failure' }}
     steps:
       - id: lib
-        uses: flakeyard/action-shell-lib@d2f4905ffa8bcea6bb6be2928d90db9037d5bdef # v0.3.0
+        uses: flakeyard/action-shell-lib@5c59164109499a225af9b75488caf142802add84 # v0.3.1
 
       - id: token
         uses: $/.github/actions/token
@@ -219,7 +219,7 @@ jobs:
       elsewhere-created: ${{ steps.state.outputs.elsewhere-created }}
     steps:
       - id: lib
-        uses: flakeyard/action-shell-lib@d2f4905ffa8bcea6bb6be2928d90db9037d5bdef # v0.3.0
+        uses: flakeyard/action-shell-lib@5c59164109499a225af9b75488caf142802add84 # v0.3.1
 
       # A job that failed inside release-please has no outputs; it may still
       # have released an older commit.
@@ -254,7 +254,7 @@ jobs:
       contents: write # mark the newest release as latest
     steps:
       - id: lib
-        uses: flakeyard/action-shell-lib@d2f4905ffa8bcea6bb6be2928d90db9037d5bdef # v0.3.0
+        uses: flakeyard/action-shell-lib@5c59164109499a225af9b75488caf142802add84 # v0.3.1
 
       - uses: $/.github/actions/keep-latest
         with:
@@ -274,7 +274,7 @@ jobs:
       contents: read # read the release
     steps:
       - id: lib
-        uses: flakeyard/action-shell-lib@d2f4905ffa8bcea6bb6be2928d90db9037d5bdef # v0.3.0
+        uses: flakeyard/action-shell-lib@5c59164109499a225af9b75488caf142802add84 # v0.3.1
 
       - uses: $/.github/actions/rerun-release-commit
         with:
@@ -304,7 +304,7 @@ jobs:
       pull-requests: write # the release pull request
     steps:
       - id: lib
-        uses: flakeyard/action-shell-lib@d2f4905ffa8bcea6bb6be2928d90db9037d5bdef # v0.3.0
+        uses: flakeyard/action-shell-lib@5c59164109499a225af9b75488caf142802add84 # v0.3.1
 
       - id: token
         uses: $/.github/actions/token
@@ -333,7 +333,7 @@ jobs:
       pull-requests: read # find the release pull request
     steps:
       - id: lib
-        uses: flakeyard/action-shell-lib@d2f4905ffa8bcea6bb6be2928d90db9037d5bdef # v0.3.0
+        uses: flakeyard/action-shell-lib@5c59164109499a225af9b75488caf142802add84 # v0.3.1
 
       - uses: $/.github/actions/dispatch-checks
         with:

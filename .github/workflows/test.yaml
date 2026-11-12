@@ -32,7 +32,7 @@ jobs:
       # The library that the scripts source, at the commit that release.yaml
       # pins.
       - id: lib
-        uses: flakeyard/action-shell-lib@d2f4905ffa8bcea6bb6be2928d90db9037d5bdef # v0.3.0
+        uses: flakeyard/action-shell-lib@5c59164109499a225af9b75488caf142802add84 # v0.3.1
       # The static tests of the workflows use the runner's mikefarah yq.
       - env:
           SHELL_LIB: ${{ steps.lib.outputs.path }}
