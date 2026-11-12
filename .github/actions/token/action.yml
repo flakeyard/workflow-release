@@ -23,12 +23,14 @@ runs:
   using: composite
   steps:
     - name: Check the App inputs
-      shell: bash
+      shell: /usr/bin/bash --noprofile --norc -p -e -o pipefail {0}
       env:
         SHELL_LIB: ${{ inputs.shell-lib }}
         CLIENT_ID: ${{ inputs.app-client-id }}
         HAS_KEY: ${{ inputs.private-key != '' }}
-      run: '"$GITHUB_ACTION_PATH/run.sh"'
+      run: >-
+        /usr/bin/bash -p "$SHELL_LIB/run-step.sh"
+        "$GITHUB_ACTION_PATH/scripts/step" token CLIENT_ID HAS_KEY
     - id: app
       if: inputs.app-client-id != ''
       uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0

@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of token: the check of the App inputs.
 
-script=.github/actions/token/run.sh
+step=token
 
 # token_case NAME EXPECTED [NAME=VALUE...]: check neither a client ID nor a
 # key, with the given overrides; message=TEXT is expected.
@@ -11,7 +11,7 @@ token_case() {
   start_test
   apply CLIENT_ID="" HAS_KEY=false
   configure "$@"
-  run "token: $name" "$expected" "$script"
+  run_step "token: $name" "$expected" "$ACTIONS/$step" "$step"
   expect_param_message
   finish
 }
@@ -29,3 +29,9 @@ if require_yq .github/actions/token/action.yml; then
     '[.runs.steps[] | select(.id == "app") | .with | to_entries[] | select(.key | startswith("permission-"))] | from_entries
       == {"permission-contents": "write", "permission-issues": "write", "permission-pull-requests": "write", "permission-workflows": "write"}'
 fi
+
+start_test
+apply CLIENT_ID=Iv1 HAS_KEY=false
+run_hostile "token: earlier steps of the job run no code in it" fail "$ACTIONS/$step" "$step"
+expect message "app-client-id is set but APP_PRIVATE_KEY is empty"
+finish

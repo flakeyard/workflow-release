@@ -15,11 +15,14 @@ inputs:
 runs:
   using: composite
   steps:
-    - shell: bash
+    - shell: /usr/bin/bash --noprofile --norc -p -e -o pipefail {0}
       env:
         SHELL_LIB: ${{ inputs.shell-lib }}
         GH_TOKEN: ${{ inputs.token }}
         REPO: ${{ github.repository }}
         SHA: ${{ github.sha }}
         MANIFEST: ${{ inputs.manifest-file }}
-      run: '"$GITHUB_ACTION_PATH/run.sh"'
+      run: >-
+        /usr/bin/bash -p "$SHELL_LIB/run-step.sh"
+        "$GITHUB_ACTION_PATH/scripts/step" sync-major-tag GH_TOKEN REPO SHA
+        MANIFEST GITHUB_STEP_SUMMARY

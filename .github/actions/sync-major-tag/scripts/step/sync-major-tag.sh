@@ -2,13 +2,17 @@
 # Moves vX of the manifest's major version forward to its newest release.
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
-shopt -s inherit_errexit
 : "${SHELL_LIB:?}"
 : "${REPO:?}" "${SHA:?}" "${MANIFEST:?}"
-lib=$(dirname "$0")/../lib
-# shellcheck source=../lib/major-tag.sh
+# The tools of the runner, LC_ALL=C and inherit_errexit.
+# shellcheck source=/dev/null
+source "$SHELL_LIB/env.sh"
+step_environment
+# From $0, which no variable of the job can set (ADR-0001).
+lib=${0%/*}/../../../lib
+# shellcheck source=../../../lib/major-tag.sh
 source "$lib/major-tag.sh"
-# shellcheck source=../lib/manifest.sh
+# shellcheck source=../../../lib/manifest.sh
 source "$lib/manifest.sh"
 # shellcheck source=/dev/null
 source "$SHELL_LIB/report.sh"
