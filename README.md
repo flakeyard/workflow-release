@@ -47,11 +47,12 @@ jobs:
     needs: release
     if: ${{ !cancelled() && needs.release.outputs.released == 'true' }}
     runs-on: ubuntu-24.04
-    # One publication at a time; a cancelled one could leave a release
-    # unpublished.
+    # One publication at a time, all of them queued: a cancelled one could
+    # leave a release unpublished.
     concurrency:
       group: publish-${{ github.repository }}
       cancel-in-progress: false
+      queue: max
     steps:
       - uses: actions/checkout@<commit> # v7.0.1
         with:
