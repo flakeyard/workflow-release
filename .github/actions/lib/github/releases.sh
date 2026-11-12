@@ -18,7 +18,7 @@ published_release() {
 # releases, oldest version first; pre-releases only if PRERELEASES is true.
 published_releases() {
   local prereleases=$1 tag id
-  gh api --paginate "repos/$REPO/releases?per_page=100" --jq "
+  api_get "repos/$REPO/releases?per_page=100" --paginate --jq "
     def published: .draft | not;
     def wanted: $prereleases or (.prerelease | not);
     .[] | select(published and wanted) | \"\(.tag_name) \(.id)\"" \

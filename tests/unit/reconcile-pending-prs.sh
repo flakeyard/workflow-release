@@ -83,6 +83,28 @@ expect no-calls
 finish
 
 start_test
+apply BASE=main
+pending_prs '[{"number":5,"pull_request":{"merged_at":"x"}}]'
+next_page "$(pending_path)" 2 '[{"number":6,"pull_request":{"merged_at":"x"}}]'
+transient_failures "$(pending_path)" 1
+pr 5 main 1.2.0
+pr 6 main 1.3.0
+release v1.3.0
+run "reconcile: a transient error of the pending list is retried" ok "$script"
+expect sleeps 5
+expect call "POST repos/$REPO/issues/6/labels"
+expect no-call "issues/5/"
+finish
+
+# The API answers HTTP 404 for the issues of a repository that the token
+# cannot read.
+start_test
+apply BASE=main
+run "reconcile: a missing pending list fails" fail "$script"
+expect message "$(pending_path): Not Found (HTTP 404)"
+finish
+
+start_test
 apply BASE=release/v1
 pending_prs '[{"number":9,"pull_request":{"merged_at":"x"}}]'
 pr 9 release/v1 1.1.1
