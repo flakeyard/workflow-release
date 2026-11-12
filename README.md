@@ -393,6 +393,13 @@ and, from `/usr/bin` or `/bin`, their `gh`, `jq`, GNU coreutils (`base64`,
 
 ## Development
 
+Open the repository in its dev container,
+[`.devcontainer/devcontainer.json`](.devcontainer/devcontainer.json), with
+"Reopen in Container" in VS Code or `devcontainer up --workspace-folder .`. It
+has Nix, and the checks below run in it as in CI; tools that the image does not
+have come from nixpkgs, such as `nix run nixpkgs#actionlint`. Nix on the host
+works as well.
+
 The workflow in
 [`.github/workflows/release.yaml`](.github/workflows/release.yaml) only composes
 steps. Each step's logic is a small composite action in
@@ -455,7 +462,7 @@ once more with `BASH_ENV`, exported functions and `BASH_SOURCE` that must run
 nothing, and `check_action_steps` checks the steps of every action that run
 scripts. They read the workflows with mikefarah `yq` v4, which GitHub-hosted
 runners have, and fail without it; locally, run
-`nix shell nixpkgs#yq-go -c tests/run.sh`.
+`nix shell nixpkgs#yq-go nixpkgs#jq -c tests/run.sh`.
 
 The repository checks itself with [`test.yaml`](.github/workflows/test.yaml):
 its job `unit` runs `tests/run.sh`, and the job `check` calls
