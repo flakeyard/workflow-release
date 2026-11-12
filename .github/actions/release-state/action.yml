@@ -43,7 +43,7 @@ runs:
   using: composite
   steps:
     - id: state
-      shell: bash
+      shell: /usr/bin/bash --noprofile --norc -p -e -o pipefail {0}
       env:
         SHELL_LIB: ${{ inputs.shell-lib }}
         GH_TOKEN: ${{ inputs.token }}
@@ -54,4 +54,8 @@ runs:
         CREATED_TAG: ${{ inputs.created-tag }}
         RELEASE_FAILED: ${{ inputs.release-failed }}
         NEW_BRANCH: ${{ github.event.created }}
-      run: '"$GITHUB_ACTION_PATH/run.sh"'
+      run: >-
+        /usr/bin/bash -p "$SHELL_LIB/run-step.sh"
+        "$GITHUB_ACTION_PATH/scripts/step" release-state GH_TOKEN REPO SHA
+        MANIFEST CREATED CREATED_TAG RELEASE_FAILED NEW_BRANCH GITHUB_OUTPUT
+        GITHUB_STEP_SUMMARY

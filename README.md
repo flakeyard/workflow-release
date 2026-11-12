@@ -387,8 +387,9 @@ merging a `fix:` commit.
 
 ## Requirements
 
-GitHub-hosted `ubuntu-24.04` runners: the workflow uses their `bash`, `gh`,
-`jq`, GNU coreutils (`base64`, `mktemp`, `sort -V`) and GNU `grep`.
+GitHub-hosted `ubuntu-24.04` runners: the workflow uses their `/usr/bin/bash`
+and, from `/usr/bin` or `/bin`, their `gh`, `jq`, GNU coreutils (`base64`,
+`date`, `mktemp`, `sleep`, `sort -V`) and GNU `grep`.
 
 ## Development
 
@@ -416,35 +417,44 @@ referenced with `$/`:
 - `dispatch-checks`: checks of the release pull request when `GITHUB_TOKEN`
   updates it.
 
-Each action runs its `run.sh`, or one script per check when it has several
-(`preflight/inputs.sh` and `preflight/config.sh`). Each job first calls
-[action-shell-lib][action-shell-lib] once, pinned by commit, and passes its
-directory to the actions as the input `shell-lib`, which they give to their
-scripts as `SHELL_LIB`; the actions do not call the library themselves. The
-scripts source `report.sh`, which reports errors, warnings, notices and the job
-summary, and `github/api.sh` and `github/contents.sh`, which call the GitHub
-API, from the library, and the helpers of this repository in `lib`:
-`lib/github/` calls the GitHub API on top of the library (`optional.sh`,
-`files.sh`, `tags.sh`, `releases.sh`, `pulls.sh`, `runs.sh`, `commits.sh`),
-`lib/version.sh` tells versions and tags of releases, `lib/manifest.sh` reads
-the release-please manifest, `lib/app-key.sh` checks the App inputs,
-`lib/major-tag.sh` works out how `vX` has to change and `lib/clock.sh` measures
-ages. `tests/run.sh` tests them with the harness, the fixtures and the stubs of
-`gh`, `date` and `sleep` in `internal/testing` of the library, which `tests/bin`
-extends with `gh workflow` and fixtures that appear after a sleep; it takes the
-library at the commit that `release.yaml` pins: CI passes it in `SHELL_LIB`, and
-otherwise `tests/run.sh` fetches it with `git` into
-`~/.cache/flakeyard/action-shell-lib/<commit>`. The suites in `tests/unit`
-mirror the actions and share the helpers in `tests/lib`. `tests/unit/workflows`
-has one file per workflow. `release.sh` checks the job graph: only `Release`
-and, with the App, `Release pull request` reach the environment and the key,
-`Release` runs only when it is due or there is no environment and runs
-release-please right after `release-scope`, no job with an environment runs code
-of the repository, every job passes the library to the actions that need it, and
-every use of the library names one commit; the others check that the
-repository's own workflows call workflow-check and workflow-scorecard as
-[FY-0034][fy-0034] asks. They read the workflows with mikefarah `yq` v4, which
-GitHub-hosted runners have, and fail without it; locally, run
+Each job first calls [action-shell-lib][action-shell-lib] once, pinned by
+commit, and passes its directory to the actions as the input `shell-lib`; the
+actions do not call the library themselves. Each step of an action that runs a
+script runs `scripts/step/<step>.sh` through `run-step.sh` of the library, with
+only the variables that its run line names ([ADR-0001][adr-0001]): earlier steps
+of the job cannot run code in it through `BASH_ENV`, exported functions or
+`BASH_SOURCE`, and the script runs the tools of the runner, `SYSTEM_PATH` of
+`env.sh`. A step is named after its action, except the steps `inputs` and
+`config` of `preflight` and `pause` of `release-pr`. The scripts source
+`report.sh`, which reports errors, warnings, notices and the job summary, and
+`github/api.sh` and `github/contents.sh`, which call the GitHub API, from the
+library, and the helpers of this repository in `lib`: `lib/github/` calls the
+GitHub API on top of the library (`optional.sh`, `files.sh`, `tags.sh`,
+`releases.sh`, `pulls.sh`, `runs.sh`, `commits.sh`), `lib/version.sh` tells
+versions and tags of releases, `lib/manifest.sh` reads the release-please
+manifest, `lib/app-key.sh` checks the App inputs, `lib/major-tag.sh` works out
+how `vX` has to change and `lib/clock.sh` measures ages. `tests/run.sh` tests
+them with the harness, the fixtures and the stubs of `gh`, `date` and `sleep` in
+`internal/testing` of the library, which `tests/bin` extends with `gh workflow`
+and fixtures that appear after a sleep; it takes the library at the commit that
+`release.yaml` pins: CI passes it in `SHELL_LIB`, and otherwise `tests/run.sh`
+fetches it with `git` into `~/.cache/flakeyard/action-shell-lib/<commit>`. The
+suites in `tests/unit` mirror the actions and share the helpers in `tests/lib`.
+`tests/unit/workflows` has one file per workflow. `release.sh` checks the job
+graph: only `Release` and, with the App, `Release pull request` reach the
+environment and the key, `Release` runs only when it is due or there is no
+environment and runs release-please right after `release-scope`, no job with an
+environment runs code of the repository, every job passes the library to the
+actions that need it, and every use of the library names one commit; the others
+check that the repository's own workflows call workflow-check and
+workflow-scorecard as [FY-0034][fy-0034] asks. The unit tests run each script as
+its step does, with `run_step` of `internal/testing/consumer/step.sh` of the
+library: through `run-step.sh` of a copy of the library with only the variables
+of its run line, which they read from its `action.yml`; `run_hostile` runs it
+once more with `BASH_ENV`, exported functions and `BASH_SOURCE` that must run
+nothing, and `check_action_steps` checks the steps of every action that run
+scripts. They read the workflows with mikefarah `yq` v4, which GitHub-hosted
+runners have, and fail without it; locally, run
 `nix shell nixpkgs#yq-go -c tests/run.sh`.
 
 The repository checks itself with [`test.yaml`](.github/workflows/test.yaml):
@@ -462,7 +472,8 @@ design follows
 [FY-0007](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0007-branching-and-releases.md),
 [FY-0028](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0028-supply-chain.md),
 [FY-0030](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0030-actions-workflows-and-release-bot.md),
-[FY-0034][fy-0034] and [FY-0035][fy-0035].
+[FY-0034][fy-0034] and [FY-0035][fy-0035]; the decisions of this repository are
+in [`docs/adr`](docs/adr/INDEX.md).
 
 ## Bootstrap
 
@@ -478,6 +489,8 @@ some checks of this repository are not released yet. Until they are:
 [MIT](LICENSE).
 
 [action-shell-lib]: https://github.com/flakeyard/action-shell-lib
+[adr-0001]:
+  docs/adr/records/0001-run-the-steps-of-internal-actions-through-run-step-sh.md
 [fy-0034]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0034-check-every-repository-with-workflow-check.md
 [fy-0035]:

@@ -107,6 +107,11 @@ if require_yq .github/workflows/release.yaml; then
     '[$actions[] | .runs.steps[] | select(library)] == []
     and ($actions | all(.[]; any(.runs.steps[]; runs_script) == (.inputs | has("shell-lib"))
     and all(.runs.steps[] | select(runs_script); .env.SHELL_LIB == $lib_input)))'
+  # Every step of an internal action that runs a script runs it through
+  # run-step.sh (ADR-0001).
+  for action in "$root"/.github/actions/*/action.yml; do
+    check_action_steps "${action#"$root/"}"
+  done
   # The tests take the library at that commit (tests/lib/shell-lib.sh).
   check_library_pins
 fi

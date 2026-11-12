@@ -15,7 +15,7 @@ readonly PARAM_FORM='^([a-z][a-z0-9_]*)=(.*)$'
 declare -A params
 # The tools of the runner that the scripts and the stubs run from
 # SYSTEM_PATH.
-readonly RUNNER_TOOLS=(base64 bash cat cut date grep jq mktemp rm sort tail)
+readonly RUNNER_TOOLS=(base64 bash cat cut date grep jq mktemp mv rm sort tail)
 # The directory of the internal actions, ACTIONS/<name>/action.yml.
 readonly ACTIONS=$root/.github/actions
 

@@ -3,7 +3,8 @@
 # request. Only the job that releases uses the environment, and with one it
 # runs only when a job without the key has found it due. Each step's logic
 # lives in .github/actions. Each job calls action-shell-lib once, as its first
-# step, and passes its path to those actions, which source its modules.
+# step, and passes its path to those actions, which run their scripts through
+# its run-step.sh (ADR-0001).
 name: release
 
 on:

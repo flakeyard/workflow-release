@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of rerun-release-commit.
 
-script=.github/actions/rerun-release-commit/run.sh
+step=rerun-release-commit
 # When this run first started, and a release published before and after it.
 started=2026-10-31T12:00:00Z before=2026-10-31T11:00:00Z after=2026-10-31T12:01:00Z
 
@@ -40,41 +40,41 @@ release_published_at() {
 }
 
 rerun_setup
-run "rerun-release-commit: reruns the run of the release commit" ok "$script"
+run_step "rerun-release-commit: reruns the run of the release commit" ok "$ACTIONS/$step" "$step"
 expect call "POST repos/$REPO/actions/runs/77/rerun"
 expect message "::notice::reran https://x/runs/77, the run of bbb, to publish v1.2.3"
 finish
 
 rerun_setup BRANCH=release/v1
 commit_runs_fixture release/v1
-run "rerun-release-commit: release branch" ok "$script"
+run_step "rerun-release-commit: release branch" ok "$ACTIONS/$step" "$step"
 expect call "POST repos/$REPO/actions/runs/77/rerun"
 finish
 
 rerun_setup
 commit_run_fixture in_progress
 later "repos/$REPO/actions/runs/77" '{"id":77,"status":"completed"}'
-run "rerun-release-commit: waits for the run to complete" ok "$script"
+run_step "rerun-release-commit: waits for the run to complete" ok "$ACTIONS/$step" "$step"
 expect call "POST repos/$REPO/actions/runs/77/rerun"
 finish
 
 rerun_setup
 commit_run_fixture in_progress
-run "rerun-release-commit: run still in progress fails" fail "$script"
+run_step "rerun-release-commit: run still in progress fails" fail "$ACTIONS/$step" "$step"
 expect message "is still running; when it completes, rerun it to publish v1.2.3"
 expect no-calls
 finish
 
 rerun_setup
 fixture "$(commit_runs_path main "$commit")" '{"workflow_runs":[]}'
-run "rerun-release-commit: no run of the release commit fails" fail "$script"
+run_step "rerun-release-commit: no run of the release commit fails" fail "$ACTIONS/$step" "$step"
 expect message "no push run of this workflow at bbb on main: v1.2.3 is released but the run of its commit cannot publish it; cut the next patch release"
 expect no-message abandon
 expect no-calls
 finish
 
 rerun_setup FAIL_ON="POST repos/o/r/actions/runs/77/rerun 403"
-run "rerun-release-commit: rerun refused fails" fail "$script"
+run_step "rerun-release-commit: rerun refused fails" fail "$ACTIONS/$step" "$step"
 expect message "could not rerun https://x/runs/77"
 expect message "rerun it, or if it cannot be rerun: v1.2.3 is released but the run of its commit cannot publish it; cut the next patch release"
 expect no-message abandon
@@ -83,23 +83,29 @@ finish
 
 rerun_setup CREATED=false
 release_published_at "$after"
-run "rerun-release-commit: published after a failure in this run" ok "$script"
+run_step "rerun-release-commit: published after a failure in this run" ok "$ACTIONS/$step" "$step"
 expect call "POST repos/$REPO/actions/runs/77/rerun"
 finish
 
 rerun_setup CREATED=false
 release_published_at "$before"
-run "rerun-release-commit: published before this run" ok "$script"
+run_step "rerun-release-commit: published before this run" ok "$ACTIONS/$step" "$step"
 expect no-calls
 finish
 
 rerun_setup CREATED=false
-run "rerun-release-commit: no published release" ok "$script"
+run_step "rerun-release-commit: no published release" ok "$ACTIONS/$step" "$step"
 expect no-calls
 finish
 
 rerun_setup
 fixture "repos/$REPO/actions/runs/100" "HTTP 500"
-run "rerun-release-commit: API error fails" fail "$script"
+run_step "rerun-release-commit: API error fails" fail "$ACTIONS/$step" "$step"
 expect no-calls
+finish
+
+rerun_setup
+run_hostile "rerun-release-commit: earlier steps of the job run no code in it" ok "$ACTIONS/$step" "$step"
+expect call "POST repos/$REPO/actions/runs/77/rerun"
+expect summary "reran https://x/runs/77 to publish v1.2.3"
 finish
