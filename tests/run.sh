@@ -24,6 +24,10 @@ source "$SHELL_LIB/internal/testing/yaml.sh"
 source "$SHELL_LIB/internal/testing/workflow.sh"
 # shellcheck source=/dev/null
 source "$SHELL_LIB/internal/testing/consumer/action.sh"
+# shellcheck source=/dev/null
+source "$SHELL_LIB/internal/testing/consumer/library.sh"
+# shellcheck source=/dev/null
+source "$SHELL_LIB/internal/testing/consumer/step.sh"
 # The scripts and the YAML files are paths in the repository.
 # shellcheck disable=SC2034 # read by internal/testing
 code_root=$root

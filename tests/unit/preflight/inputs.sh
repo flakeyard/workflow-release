@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of preflight: the run.
 
-script=.github/actions/preflight/inputs.sh
+step=inputs
 
 # inputs_case NAME EXPECTED [NAME=VALUE...]: check a push to main with neither
 # a client ID nor a visible key, with the given overrides; message=TEXT is
@@ -12,7 +12,7 @@ inputs_case() {
   start_test
   apply EVENT=push CLIENT_ID="" HAS_KEY=false KEY_VISIBLE=true DEFAULT_BRANCH=main
   configure "$@"
-  run "preflight run: $name" "$expected" "$script"
+  run_step "preflight run: $name" "$expected" "$ACTIONS/preflight" "$step"
   expect_param_message
   finish
 }
@@ -37,7 +37,7 @@ skip_case() {
   start_test
   apply EVENT=push CLIENT_ID="" HAS_KEY=false KEY_VISIBLE=true DEFAULT_BRANCH=main
   configure "$@"
-  run "preflight run: $name" "$expected" "$script"
+  run_step "preflight run: $name" "$expected" "$ACTIONS/preflight" "$step"
   expect output skip "$skip"
   expect_param_message
   finish
@@ -50,3 +50,9 @@ skip_case "release/v0 as the default branch is not skipped" ok "" \
   REF=refs/heads/release/v0 DEFAULT_BRANCH=release/v0
 skip_case "main is not skipped" ok ""
 skip_case "release/v1 is not skipped" ok "" REF=refs/heads/release/v1
+
+start_test
+apply EVENT=push CLIENT_ID="" HAS_KEY=false KEY_VISIBLE=true DEFAULT_BRANCH=main REF=refs/heads/release/v0
+run_hostile "preflight run: earlier steps of the job run no code in it" ok "$ACTIONS/preflight" "$step"
+expect output skip true
+finish

@@ -33,7 +33,7 @@ runs:
   steps:
     - id: run
       name: Check the run
-      shell: bash
+      shell: /usr/bin/bash --noprofile --norc -p -e -o pipefail {0}
       env:
         SHELL_LIB: ${{ inputs.shell-lib }}
         CLIENT_ID: ${{ inputs.app-client-id }}
@@ -42,10 +42,13 @@ runs:
         EVENT: ${{ github.event_name }}
         REF: ${{ github.ref }}
         DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-      run: '"$GITHUB_ACTION_PATH/inputs.sh"'
+      run: >-
+        /usr/bin/bash -p "$SHELL_LIB/run-step.sh"
+        "$GITHUB_ACTION_PATH/scripts/step" inputs CLIENT_ID HAS_KEY KEY_VISIBLE
+        EVENT REF DEFAULT_BRANCH GITHUB_OUTPUT
     - name: Check the release-please configuration
       if: ${{ steps.run.outputs.skip != 'true' }}
-      shell: bash
+      shell: /usr/bin/bash --noprofile --norc -p -e -o pipefail {0}
       env:
         SHELL_LIB: ${{ inputs.shell-lib }}
         GH_TOKEN: ${{ github.token }}
@@ -54,4 +57,7 @@ runs:
         REF: ${{ github.ref }}
         CONFIG: ${{ inputs.config-file }}
         MANIFEST: ${{ inputs.manifest-file }}
-      run: '"$GITHUB_ACTION_PATH/config.sh"'
+      run: >-
+        /usr/bin/bash -p "$SHELL_LIB/run-step.sh"
+        "$GITHUB_ACTION_PATH/scripts/step" config GH_TOKEN REPO SHA REF CONFIG
+        MANIFEST

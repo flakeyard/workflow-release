@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Tests of preflight: the release-please configuration.
 
-script=.github/actions/preflight/config.sh
+step=config
 
 # A supported configuration, without its braces.
 ok='"include-component-in-tag":false,"packages":{".":{}}'
@@ -16,7 +16,7 @@ config_case() {
   configure "$@"
   file_fixture "$REPO" "$CONFIG" "$SHA" "$(param config "{$ok}")"
   manifest "$(param version 0.0.0)"
-  run "preflight config: $name" "$expected" "$script"
+  run_step "preflight config: $name" "$expected" "$ACTIONS/preflight" "$step"
   finish
 }
 config_case "supported" ok
@@ -46,17 +46,23 @@ config_case "release/v1 with version 2" fail version=2.1.0 REF=refs/heads/releas
 start_test
 file_fixture "$REPO" "$CONFIG" "$SHA" "{$ok}"
 file_fixture "$REPO" "$MANIFEST" "$SHA" '{"lib": "1.0.0"}'
-run "preflight config: manifest without root" fail "$script"
+run_step "preflight config: manifest without root" fail "$ACTIONS/preflight" "$step"
 finish
 
 start_test
 manifest 0.0.0
-run "preflight config: a missing configuration is named" fail "$script"
+run_step "preflight config: a missing configuration is named" fail "$ACTIONS/preflight" "$step"
 expect message "$CONFIG does not exist at $SHA"
 finish
 
 start_test
 file_fixture "$REPO" "$CONFIG" "$SHA" "{$ok}"
-run "preflight config: a missing manifest is named" fail "$script"
+run_step "preflight config: a missing manifest is named" fail "$ACTIONS/preflight" "$step"
 expect message "$MANIFEST does not exist at $SHA"
+finish
+
+start_test
+file_fixture "$REPO" "$CONFIG" "$SHA" "{$ok}"
+manifest 0.0.0
+run_hostile "preflight config: earlier steps of the job run no code in it" ok "$ACTIONS/preflight" "$step"
 finish
