@@ -8,15 +8,19 @@
 # only release-please itself could close that gap.
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
-shopt -s inherit_errexit
 : "${SHELL_LIB:?}"
 : "${REPO:?}" "${BASE:?}" "${SHA:?}" "${CONFIG:?}" "${MANIFEST:?}"
-lib=$(dirname "$0")/../lib
-# shellcheck source=../lib/github/commits.sh
+# The tools of the runner, LC_ALL=C and inherit_errexit.
+# shellcheck source=/dev/null
+source "$SHELL_LIB/env.sh"
+step_environment
+# From $0, which no variable of the job can set (ADR-0001).
+lib=${0%/*}/../../../lib
+# shellcheck source=../../../lib/github/commits.sh
 source "$lib/github/commits.sh"
-# shellcheck source=../lib/github/files.sh
+# shellcheck source=../../../lib/github/files.sh
 source "$lib/github/files.sh"
-# shellcheck source=../lib/github/pulls.sh
+# shellcheck source=../../../lib/github/pulls.sh
 source "$lib/github/pulls.sh"
 # shellcheck source=/dev/null
 source "$SHELL_LIB/report.sh"
