@@ -7,6 +7,9 @@ on:
     types: [opened, synchronize, reopened, edited] # edited: the title check
   push:
     branches: [main, "release/v*"]
+  # Weekly, for the end of life of the nixpkgs branch in flake.lock (FY-0036).
+  schedule:
+    - cron: "29 4 * * 1"
   workflow_dispatch: # dispatched checks of release pull requests (FY-0030)
 
 permissions: {}
@@ -50,6 +53,6 @@ jobs:
       statuses: write # commit statuses of dispatched runs
     with:
       needs: ${{ toJSON(needs) }}
-      # The repository has no flake yet.
-      flake: ""
+      flake: .
+      expect-checks: '["workflows"]'
       renovate-presets: '["flakeyard/renovate-config"]'
