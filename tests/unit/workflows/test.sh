@@ -32,8 +32,8 @@ if require_yq .github/workflows/test.yaml; then
     ".jobs.check | condition == \"$CALLER_CONDITION\""
   ci_test "check gets the permissions of workflow-check" \
     ".jobs.check.permissions == $CALLER_PERMISSIONS"
-  ci_test "check builds no flake and expects the flakeyard presets" \
-    '.jobs.check.with | .flake == "" and .["renovate-presets"] == "[\"flakeyard/renovate-config\"]"'
+  ci_test "check builds the root flake with the checks of its atoms and expects the flakeyard presets" \
+    '.jobs.check.with | .flake == "." and .["expect-checks"] == "[\"workflows\"]" and .["renovate-presets"] == "[\"flakeyard/renovate-config\"]"'
   ci_test "an edit of a pull request cancels no run" \
     '.concurrency["cancel-in-progress"] | contains("github.event.action != '"'edited'"'")'
   ci_test "dispatched and edited pull requests are checked" \

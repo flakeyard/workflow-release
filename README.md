@@ -404,8 +404,8 @@ Open the repository in its dev container,
 [`.devcontainer/devcontainer.json`](.devcontainer/devcontainer.json), with
 "Reopen in Container" in VS Code or `devcontainer up --workspace-folder .`. It
 has Nix, and the checks below run in it as in CI; tools that the image does not
-have come from nixpkgs, such as `nix run nixpkgs#actionlint`. Nix on the host
-works as well.
+have come from nixpkgs, such as `nix run nixpkgs#typos`. Nix on the host works
+as well.
 
 The workflow in
 [`.github/workflows/release.yaml`](.github/workflows/release.yaml) only composes
@@ -473,16 +473,18 @@ runners have, and fail without it; locally, run
 
 The repository checks itself with [`test.yaml`](.github/workflows/test.yaml):
 its job `unit` runs `tests/run.sh`, and the job `check` calls
-[workflow-check](https://github.com/flakeyard/workflow-check), which checks the
-title of the pull request, `renovate.json` and the tags of its presets.
+[workflow-check](https://github.com/flakeyard/workflow-check), which checks
+`flake.lock`, builds the checks of the flake, checks the title of the pull
+request, `renovate.json` and the tags of its presets, and checks the end of life
+of the nixpkgs branch in its weekly run. The root [`flake.nix`](flake.nix) only
+imports atoms ([FY-0038][fy-0038]): [atom-workflows][atom-workflows] lints the
+workflows and actions with actionlint and zizmor (`checks.workflows`).
 [`scorecard.yaml`](.github/workflows/scorecard.yaml) runs OpenSSF Scorecard
 through [workflow-scorecard](https://github.com/flakeyard/workflow-scorecard).
 The repository releases itself through
 [`release-self.yaml`](.github/workflows/release-self.yaml), whose release pull
 requests are checked by a dispatched run of `test.yaml`. Before a pull request,
-run `tests/run.sh`, shellcheck, shfmt, actionlint and zizmor; actionlint does
-not yet know the `$/` syntax and `queue: max` and reports them as errors. The
-design follows
+run `tests/run.sh`, `nix flake check`, shellcheck and shfmt. The design follows
 [FY-0007](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0007-branching-and-releases.md),
 [FY-0028](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0028-supply-chain.md),
 [FY-0030](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0030-actions-workflows-and-release-bot.md),
@@ -495,17 +497,20 @@ Following
 [FY-0022](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0022-bootstrap.md),
 some checks of this repository are not released yet. Until they are:
 
-- actionlint, zizmor, shellcheck, shfmt, prettier, markdownlint, typos and REUSE
-  run locally before every pull request; the atoms will provide them.
+- shellcheck, shfmt, prettier, markdownlint, typos and REUSE run locally before
+  every pull request; the atoms will provide them.
 
 ## License
 
 [MIT](LICENSE).
 
 [action-shell-lib]: https://github.com/flakeyard/action-shell-lib
+[atom-workflows]: https://github.com/flakeyard/atom-workflows
 [adr-0001]:
   docs/adr/records/0001-run-the-steps-of-internal-actions-through-run-step-sh.md
 [fy-0034]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0034-check-every-repository-with-workflow-check.md
 [fy-0035]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0035-extract-logic-that-has-two-users.md
+[fy-0038]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0038-roll-out-the-atoms.md
