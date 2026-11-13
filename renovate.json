@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>flakeyard/renovate-config//internal/workflow#v0.2.2"],
+  "extends": ["github>flakeyard/renovate-config//internal/workflow#v0.2.3"],
   "packageRules": [
     {
       "description": "The product workflow (FY-0007, FY-0030)",
