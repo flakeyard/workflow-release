@@ -30,10 +30,10 @@ jobs:
   release:
     uses: flakeyard/workflow-release/.github/workflows/release.yaml@<commit> # v0.1.0
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-      actions: write
+      contents: write # releases and tags without an App
+      issues: write # release-please labels
+      pull-requests: write # the release pull request
+      actions: write # dispatched checks without an App
     with:
       app-client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
       environment: release
@@ -43,9 +43,16 @@ jobs:
 
   # Publishing runs in the workflow run of the release commit.
   publish:
+    name: publish
     needs: release
     if: ${{ !cancelled() && needs.release.outputs.released == 'true' }}
     runs-on: ubuntu-24.04
+    # One publication at a time, all of them queued: a cancelled one could
+    # leave a release unpublished.
+    concurrency:
+      group: publish-${{ github.repository }}
+      cancel-in-progress: false
+      queue: max
     steps:
       - uses: actions/checkout@<commit> # v7.0.1
         with:
