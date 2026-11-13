@@ -32,6 +32,8 @@ if require_yq .github/workflows/test.yaml; then
     ".jobs.check | condition == \"$CALLER_CONDITION\""
   ci_test "check gets the permissions of workflow-check" \
     ".jobs.check.permissions == $CALLER_PERMISSIONS"
+  ci_test "check forbids configuration files of atom tools (FY-0037)" \
+    '.jobs.check.with["forbid-tool-configs"] == true'
   ci_test "check builds the root flake with the checks of its atoms and expects the flakeyard presets" \
     '.jobs.check.with | .flake == "." and .["expect-checks"] == "[\"workflows\"]" and .["renovate-presets"] == "[\"flakeyard/renovate-config\"]"'
   ci_test "an edit of a pull request cancels no run" \
