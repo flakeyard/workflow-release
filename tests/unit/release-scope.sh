@@ -9,10 +9,10 @@ scope_setup() {
   local pr numbers=()
   start_test
   apply BASE=main
-  head_at "$SHA"
+  head_at "${SHA}"
   for pr; do
-    pull "$pr"
-    numbers+=("$(jq .number <<<"$pr")")
+    pull "${pr}"
+    numbers+=("$(jq .number <<<"${pr}")")
   done
   pending_prs "$(jq -nc '[$ARGS.positional[] | {number: tonumber,
     pull_request: {merged_at: "x"}}]' --args "${numbers[@]}")"
@@ -21,15 +21,15 @@ scope_setup() {
 # head_at COMMIT: the head of main is COMMIT.
 head_at() {
   local commit=$1
-  fixture "repos/$REPO/git/ref/heads/main" "{\"object\":{\"sha\":\"$commit\"}}"
+  fixture "repos/${REPO}/git/ref/heads/main" "{\"object\":{\"sha\":\"${commit}\"}}"
 }
 
 # config_at REF CONTENT VERSION: the configuration CONTENT and the manifest
 # with VERSION at REF.
 config_at() {
   local ref=$1 content=$2 version=$3
-  file_fixture "$REPO" "$CONFIG" "$ref" "$content"
-  manifest "$version" "$ref"
+  file_fixture "${REPO}" "${CONFIG}" "${ref}" "${content}"
+  manifest "${version}" "${ref}"
 }
 
 # moved_head_setup: #5 is pending since m5, and the head of main moved on to
@@ -38,90 +38,90 @@ moved_head_setup() {
   scope_setup "$(pr_json 5 m5)"
   relation m5 ahead
   head_at h1
-  config_at "$SHA" '{"packages":{".":{}}}' 1.3.0
+  config_at "${SHA}" '{"packages":{".":{}}}' 1.3.0
 }
 
 # relation COMMIT STATUS: SHA has STATUS compared with COMMIT.
 relation() {
   local commit=$1 status=$2
-  fixture "repos/$REPO/compare/$commit...$SHA" "{\"status\":\"$status\"}"
+  fixture "repos/${REPO}/compare/${commit}...${SHA}" "{\"status\":\"${status}\"}"
 }
 
 scope_setup
 apply LOG_GETS=1
-run_step "release-scope: nothing pending" ok "$ACTIONS/$step" "$step"
+run_step "release-scope: nothing pending" ok "${ACTIONS}/${step}" "${step}"
 expect errors 0
 expect no-call "git/ref/heads"
 finish
 
-scope_setup "$(pr_json 4 "$SHA")"
+scope_setup "$(pr_json 4 "${SHA}")"
 apply LOG_GETS=1
-run_step "release-scope: this run's commit merged the pending pull request" ok "$ACTIONS/$step" "$step"
+run_step "release-scope: this run's commit merged the pending pull request" ok "${ACTIONS}/${step}" "${step}"
 expect no-call "compare"
 finish
 
 # A takeover releases a pull request merged before SHA.
 scope_setup "$(pr_json 5 m5)"
 relation m5 ahead
-run_step "release-scope: pending since an earlier commit" ok "$ACTIONS/$step" "$step"
+run_step "release-scope: pending since an earlier commit" ok "${ACTIONS}/${step}" "${step}"
 finish
 
 for status in behind diverged; do
-  scope_setup "$(pr_json 4 "$SHA")" "$(pr_json 6 m6)"
-  relation m6 "$status"
-  run_step "release-scope: pending pull request merged after the commit ($status)" fail "$ACTIONS/$step" "$step"
+  scope_setup "$(pr_json 4 "${SHA}")" "$(pr_json 6 m6)"
+  relation m6 "${status}"
+  run_step "release-scope: pending pull request merged after the commit (${status})" fail "${ACTIONS}/${step}" "${step}"
   expect errors 1
-  expect message "#6 is labelled autorelease: pending and was merged as m6, which $SHA does not contain"
+  expect message "#6 is labelled autorelease: pending and was merged as m6, which ${SHA} does not contain"
   finish
 done
 
 scope_setup "$(pr_json 6 m6)" "$(pr_json 7 m7 feature)"
 relation m6 behind
 relation m7 behind
-run_step "release-scope: every pull request merged after the commit is named" fail "$ACTIONS/$step" "$step"
+run_step "release-scope: every pull request merged after the commit is named" fail "${ACTIONS}/${step}" "${step}"
 expect errors 2
 expect message "#7 is labelled"
 finish
 
 scope_setup "$(pr_json 5 m5)"
-fixture "repos/$REPO/compare/m5...$SHA" "HTTP 500"
-run_step "release-scope: an API error fails" fail "$ACTIONS/$step" "$step"
+fixture "repos/${REPO}/compare/m5...${SHA}" "HTTP 500"
+run_step "release-scope: an API error fails" fail "${ACTIONS}/${step}" "${step}"
 expect message "HTTP 500"
 finish
 
 moved_head_setup
 config_at h1 '{"packages":{".":{}}}' 1.3.0
-run_step "release-scope: the head moved on, with the same configuration" ok "$ACTIONS/$step" "$step"
+run_step "release-scope: the head moved on, with the same configuration" ok "${ACTIONS}/${step}" "${step}"
 expect errors 0
 finish
 
 moved_head_setup
 config_at h1 '{"packages":{".":{"release-as":"9.0.0"}}}' 1.3.0
-run_step "release-scope: the configuration changed at the head" fail "$ACTIONS/$step" "$step"
+run_step "release-scope: the configuration changed at the head" fail "${ACTIONS}/${step}" "${step}"
 expect errors 1
-expect message "::error file=$CONFIG::$CONFIG at h1, the head of main, is not the one at $SHA"
+expect message "::error file=${CONFIG}::${CONFIG} at h1, the head of main, is not the one at ${SHA}"
 finish
 
 moved_head_setup
 config_at h1 '{"packages":{".":{}}}' 1.4.0
-run_step "release-scope: the manifest changed at the head" fail "$ACTIONS/$step" "$step"
+run_step "release-scope: the manifest changed at the head" fail "${ACTIONS}/${step}" "${step}"
 expect errors 1
-expect message "::error file=$MANIFEST::$MANIFEST at h1"
+expect message "::error file=${MANIFEST}::${MANIFEST} at h1"
 finish
 
 moved_head_setup
 manifest 1.3.0 h1
-run_step "release-scope: no configuration at the head" fail "$ACTIONS/$step" "$step"
-expect message "$CONFIG does not exist at h1"
+run_step "release-scope: no configuration at the head" fail "${ACTIONS}/${step}" "${step}"
+expect message "${CONFIG} does not exist at h1"
 finish
 
 moved_head_setup
-fixture "repos/$REPO/git/ref/heads/main" "HTTP 500"
-run_step "release-scope: an API error reading the head fails" fail "$ACTIONS/$step" "$step"
+fixture "repos/${REPO}/git/ref/heads/main" "HTTP 500"
+run_step "release-scope: an API error reading the head fails" fail "${ACTIONS}/${step}" "${step}"
 expect message "HTTP 500"
 finish
 
-scope_setup "$(pr_json 4 "$SHA")"
-run_hostile "release-scope: earlier steps of the job run no code in it" ok "$ACTIONS/$step" "$step"
-expect summary "every pending release pull request was merged at or before $SHA"
+scope_setup "$(pr_json 4 "${SHA}")"
+run_hostile "release-scope: earlier steps of the job run no code in it" ok "${ACTIONS}/${step}" "${step}"
+expect summary "every pending release pull request was merged at or before ${SHA}"
 finish
