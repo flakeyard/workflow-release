@@ -3,6 +3,6 @@
 
 # manifest VERSION [REF]: the root version in the manifest at REF, or at SHA.
 manifest() {
-  local version=$1 ref=${2:-$SHA}
-  file_fixture "$REPO" "$MANIFEST" "$ref" "{\".\": \"$version\"}"
+  local version=$1 ref=${2:-${SHA}}
+  file_fixture "${REPO}" "${MANIFEST}" "${ref}" "{\".\": \"${version}\"}"
 }

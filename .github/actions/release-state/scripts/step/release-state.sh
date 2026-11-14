@@ -10,18 +10,18 @@ set -euo pipefail
 : "${REPO:?}" "${SHA:?}" "${MANIFEST:?}"
 # The tools of the runner, LC_ALL=C and inherit_errexit.
 # shellcheck source=/dev/null
-source "$SHELL_LIB/env.sh"
+source "${SHELL_LIB}/env.sh"
 step_environment
 # From $0, which no variable of the job can set (ADR-0001).
 lib=${0%/*}/../../../lib
 # shellcheck source=../../../lib/github/releases.sh
-source "$lib/github/releases.sh"
+source "${lib}/github/releases.sh"
 # shellcheck source=../../../lib/github/tags.sh
-source "$lib/github/tags.sh"
+source "${lib}/github/tags.sh"
 # shellcheck source=../../../lib/manifest.sh
-source "$lib/manifest.sh"
+source "${lib}/manifest.sh"
 # shellcheck source=/dev/null
-source "$SHELL_LIB/report.sh"
+source "${SHELL_LIB}/report.sh"
 
 # A tag that release-please has just created can take a moment to be visible.
 readonly TAG_ATTEMPTS=5 TAG_RETRY_SECONDS=3
@@ -35,7 +35,7 @@ is_branch_creation() {
 # created_in_this_run TAG: release-please created TAG in this run.
 created_in_this_run() {
   local tag=$1
-  [[ ${CREATED:-} == true && ${CREATED_TAG:-} == "$tag" ]]
+  [[ ${CREATED:-} == true && ${CREATED_TAG:-} == "${tag}" ]]
 }
 
 # created_other_tag TAG: release-please created a tag in this run that is not
@@ -43,27 +43,27 @@ created_in_this_run() {
 # older merge commit, which a later commit, such as a revert, may have changed.
 created_other_tag() {
   local tag=$1
-  [[ ${CREATED:-} == true && -n ${CREATED_TAG:-} && $CREATED_TAG != "$tag" ]]
+  [[ ${CREATED:-} == true && -n ${CREATED_TAG:-} && ${CREATED_TAG} != "${tag}" ]]
 }
 
 # release_tag_commit TAG: print the commit of TAG, empty when there is no such
 # tag. A tag created in this run is tried again until it is visible.
 release_tag_commit() {
   local tag=$1 attempts=1 attempt commit=""
-  if created_in_this_run "$tag"; then attempts=$TAG_ATTEMPTS; fi
+  if created_in_this_run "${tag}"; then attempts=${TAG_ATTEMPTS}; fi
   for ((attempt = 1; attempt <= attempts; attempt++)); do
-    ((attempt == 1)) || sleep "$TAG_RETRY_SECONDS"
-    commit=$(find_tag_commit "$tag") || return 1
-    [[ -z $commit ]] || break
+    ((attempt == 1)) || sleep "${TAG_RETRY_SECONDS}"
+    commit=$(find_tag_commit "${tag}") || return 1
+    [[ -z ${commit} ]] || break
   done
-  printf '%s\n' "$commit"
+  printf '%s\n' "${commit}"
 }
 
 # at_this_commit COMMIT: COMMIT is the run's commit. Only the run of a commit
 # publishes its release, so that attestations name the release commit.
 at_this_commit() {
   local commit=$1
-  [[ $commit == "$SHA" ]]
+  [[ ${commit} == "${SHA}" ]]
 }
 
 # write_elsewhere TAG COMMIT CREATED: write the release TAG at another commit;
@@ -71,10 +71,10 @@ at_this_commit() {
 write_elsewhere() {
   local tag=$1 commit=$2 created=$3
   {
-    echo "elsewhere-tag=$tag"
-    echo "elsewhere-sha=$commit"
-    echo "elsewhere-created=$created"
-  } >>"$GITHUB_OUTPUT"
+    echo "elsewhere-tag=${tag}"
+    echo "elsewhere-sha=${commit}"
+    echo "elsewhere-created=${created}"
+  } >>"${GITHUB_OUTPUT}"
 }
 
 # report_elsewhere TAG COMMIT: when this run created TAG at COMMIT, an older
@@ -83,12 +83,12 @@ write_elsewhere() {
 # commit.
 report_elsewhere() {
   local tag=$1 commit=$2
-  if created_in_this_run "$tag"; then
-    notice "$tag was released at $commit, not at $SHA; the run of $commit publishes it"
-    write_elsewhere "$tag" "$commit" true
+  if created_in_this_run "${tag}"; then
+    notice "${tag} was released at ${commit}, not at ${SHA}; the run of ${commit} publishes it"
+    write_elsewhere "${tag}" "${commit}" true
   elif [[ ${RELEASE_FAILED:-} == true ]]; then
-    notice "$tag exists at $commit; if this run released it before release-please failed, the run of $commit publishes it"
-    write_elsewhere "$tag" "$commit" false
+    notice "${tag} exists at ${commit}; if this run released it before release-please failed, the run of ${commit} publishes it"
+    write_elsewhere "${tag}" "${commit}" false
   fi
 }
 
@@ -96,55 +96,55 @@ report_elsewhere() {
 # run, not the tag of the manifest at SHA, for the run of its commit to publish.
 report_created_elsewhere() {
   local commit
-  is_release_tag "$CREATED_TAG" || fail "release-please created '$CREATED_TAG', not a tag vX.Y.Z"
-  commit=$(release_tag_commit "$CREATED_TAG")
-  [[ -n $commit ]] || fail "release-please created $CREATED_TAG, but the tag does not exist"
-  ! at_this_commit "$commit" \
-    || fail "release-please created $CREATED_TAG at $SHA, whose manifest has $version"
-  report_elsewhere "$CREATED_TAG" "$commit"
+  is_release_tag "${CREATED_TAG}" || fail "release-please created '${CREATED_TAG}', not a tag vX.Y.Z"
+  commit=$(release_tag_commit "${CREATED_TAG}")
+  [[ -n ${commit} ]] || fail "release-please created ${CREATED_TAG}, but the tag does not exist"
+  ! at_this_commit "${commit}" \
+    || fail "release-please created ${CREATED_TAG} at ${SHA}, whose manifest has ${version}"
+  report_elsewhere "${CREATED_TAG}" "${commit}"
 }
 
 # state_json VERSION COMMIT RELEASE: print the output, one JSON object with
 # string fields; all of them empty but released=false when VERSION is empty.
 state_json() {
   local version=$1 commit=$2 release=$3 released=false major minor patch
-  if [[ -n $version ]]; then released=true; fi
-  IFS=. read -r major minor patch <<<"$version"
-  jq -nc --arg released "$released" \
-    --arg tag "${version:+v$version}" --arg version "$version" \
-    --arg major "$major" --arg minor "$minor" --arg patch "$patch" \
-    --arg prerelease "$(jq -r '.prerelease | values' <<<"$release")" \
-    --arg sha "$commit" --arg release-url "$(jq -r '.html_url | values' <<<"$release")" \
+  if [[ -n ${version} ]]; then released=true; fi
+  IFS=. read -r major minor patch <<<"${version}"
+  jq -nc --arg released "${released}" \
+    --arg tag "${version:+v${version}}" --arg version "${version}" \
+    --arg major "${major}" --arg minor "${minor}" --arg patch "${patch}" \
+    --arg prerelease "$(jq -r '.prerelease | values' <<<"${release}")" \
+    --arg sha "${commit}" --arg release-url "$(jq -r '.html_url | values' <<<"${release}")" \
     '$ARGS.named'
 }
 
-version=$(root_version "$SHA")
-check_release_version "$version"
-tag=v$version
+version=$(root_version "${SHA}")
+check_release_version "${version}"
+tag=v${version}
 commit=""
 
 if is_branch_creation; then
-  notice "branch created at $SHA; not a new release"
+  notice "branch created at ${SHA}; not a new release"
 else
-  commit=$(release_tag_commit "$tag")
-  if [[ -z $commit ]] && created_in_this_run "$tag"; then
-    fail "release-please created $tag, but the tag does not exist"
+  commit=$(release_tag_commit "${tag}")
+  if [[ -z ${commit} ]] && created_in_this_run "${tag}"; then
+    fail "release-please created ${tag}, but the tag does not exist"
   fi
 fi
 
-if [[ -n $commit ]] && at_this_commit "$commit"; then
-  release=$(published_release "$tag")
-  [[ -n $release ]] || fail "tag $tag exists but has no published release"
-  state=$(state_json "$version" "$commit" "$release")
+if [[ -n ${commit} ]] && at_this_commit "${commit}"; then
+  release=$(published_release "${tag}")
+  [[ -n ${release} ]] || fail "tag ${tag} exists but has no published release"
+  state=$(state_json "${version}" "${commit}" "${release}")
   released=true
 else
   state=$(state_json "" "" "")
   released=false
 fi
-if created_other_tag "$tag"; then
+if created_other_tag "${tag}"; then
   report_created_elsewhere
-elif [[ -n $commit ]] && ! at_this_commit "$commit"; then
-  report_elsewhere "$tag" "$commit"
+elif [[ -n ${commit} ]] && ! at_this_commit "${commit}"; then
+  report_elsewhere "${tag}" "${commit}"
 fi
-echo "state=$state" >>"$GITHUB_OUTPUT"
-summary "manifest $version, released: $released"
+echo "state=${state}" >>"${GITHUB_OUTPUT}"
+summary "manifest ${version}, released: ${released}"

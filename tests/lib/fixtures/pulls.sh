@@ -9,18 +9,18 @@ readonly MERGED_AT=2026-11-01T00:00:00Z
 # release_branch BASE: release-please's head branch for BASE.
 release_branch() {
   local base=$1
-  printf '%s\n' "release-please--branches--$base"
+  printf '%s\n' "release-please--branches--${base}"
 }
 
 # pending_path: the closed issues labelled pending, first page.
 pending_path() {
-  printf '%s\n' "repos/$REPO/issues?state=closed&labels=autorelease:%20pending&per_page=100"
+  printf '%s\n' "repos/${REPO}/issues?state=closed&labels=autorelease:%20pending&per_page=100"
 }
 
 # pending_prs BODY: the closed pull requests labelled pending.
 pending_prs() {
   local body=$1
-  fixture "$(pending_path)" "$body"
+  fixture "$(pending_path)" "${body}"
 }
 
 # pr_json NUMBER COMMIT [HEAD] [BASE] [MERGED_AT] [TITLE]: a pull request
@@ -28,10 +28,10 @@ pending_prs() {
 # release-please's branch for BASE by default.
 pr_json() {
   local number=$1 commit=$2 base=${4:-main}
-  local head=${3:-$(release_branch "$base")} merged_at=${5:-$MERGED_AT}
+  local head=${3:-$(release_branch "${base}")} merged_at=${5:-${MERGED_AT}}
   local title=${6:-chore(main): release}
-  jq -nc --argjson number "$number" --arg commit "$commit" --arg head "$head" \
-    --arg base "$base" --arg merged_at "$merged_at" --arg title "$title" '{
+  jq -nc --argjson number "${number}" --arg commit "${commit}" --arg head "${head}" \
+    --arg base "${base}" --arg merged_at "${merged_at}" --arg title "${title}" '{
       number: $number, title: $title, head: {ref: $head}, base: {ref: $base},
       merge_commit_sha: $commit, merged_at: $merged_at,
       labels: [{name: "autorelease: pending"}]}'
@@ -40,6 +40,6 @@ pr_json() {
 # pull PR: answer the pull request PR, as pr_json prints it, by its number.
 pull() {
   local pr=$1 number
-  number=$(jq .number <<<"$pr")
-  fixture "repos/$REPO/pulls/$number" "$pr"
+  number=$(jq .number <<<"${pr}")
+  fixture "repos/${REPO}/pulls/${number}" "${pr}"
 }

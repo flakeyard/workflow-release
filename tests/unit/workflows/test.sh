@@ -10,7 +10,7 @@ readonly CALLER_PERMISSIONS='{"actions":"read","contents":"read","pull-requests"
 readonly WORKFLOW_CHECK='^flakeyard/workflow-check/\\.github/workflows/check\\.yaml@[0-9a-f]{40}$'
 
 # ci_test NAME FILTER: FILTER is true of test.yaml.
-ci_test() { workflow_check "$ci_workflow" "test.yaml: $1" "$2"; }
+ci_test() { workflow_check "${ci_workflow}" "test.yaml: $1" "$2"; }
 
 if require_yq .github/workflows/test.yaml; then
   ci_workflow=$(load_workflow test.yaml)
@@ -22,16 +22,16 @@ if require_yq .github/workflows/test.yaml; then
     '.jobs.unit.steps | (.[1].id == "lib")
     and (.[2].env == {"SHELL_LIB": "${{ steps.lib.outputs.path }}"})'
   ci_test "the job check calls workflow-check pinned by commit, unnamed" \
-    ".jobs.check | (.uses | test(\"$WORKFLOW_CHECK\")) and (has(\"name\") | not)"
+    ".jobs.check | (.uses | test(\"${WORKFLOW_CHECK}\")) and (has(\"name\") | not)"
   ci_test "check needs every other job and passes their results" \
     '(.jobs | keys - ["check"]) as $others
     | .jobs.check | (.needs // [] | sort) == $others and .with.needs == "${{ toJSON(needs) }}"'
   ci_test "no job needs check" \
     '[.jobs[] | .needs // [] | .[] | select(. == "check")] == []'
   ci_test "check runs unless cancelled, and always on dispatch" \
-    ".jobs.check | condition == \"$CALLER_CONDITION\""
+    ".jobs.check | condition == \"${CALLER_CONDITION}\""
   ci_test "check gets the permissions of workflow-check" \
-    ".jobs.check.permissions == $CALLER_PERMISSIONS"
+    ".jobs.check.permissions == ${CALLER_PERMISSIONS}"
   ci_test "check forbids configuration files of atom tools (FY-0037)" \
     '.jobs.check.with["forbid-tool-configs"] == true'
   ci_test "check builds the root flake with the checks of its atoms and expects the flakeyard presets" \
