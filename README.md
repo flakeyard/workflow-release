@@ -486,12 +486,16 @@ request, `renovate.json` and the tags of its presets, and checks the end of life
 of the nixpkgs branch in its weekly run. The root [`flake.nix`](flake.nix) only
 imports atoms ([FY-0038][fy-0038]): [atom-workflows][atom-workflows] lints the
 workflows and actions with actionlint and zizmor (`checks.workflows`).
+[atom-nix][atom-nix] lints the Nix files with statix, deadnix and its hook of
+relative paths (`checks.nix`), [atom-shell][atom-shell] lints the shell scripts
+with shellcheck (`checks.shell`), and treefmt checks their formatting with
+nixfmt and shfmt (`checks.treefmt`).
 [`scorecard.yaml`](.github/workflows/scorecard.yaml) runs OpenSSF Scorecard
 through [workflow-scorecard](https://github.com/flakeyard/workflow-scorecard).
 The repository releases itself through
 [`release-self.yaml`](.github/workflows/release-self.yaml), whose release pull
 requests are checked by a dispatched run of `test.yaml`. Before a pull request,
-run `tests/run.sh`, `nix flake check`, shellcheck and shfmt. The design follows
+run `tests/run.sh` and `nix flake check`. The design follows
 [FY-0007](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0007-branching-and-releases.md),
 [FY-0028](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0028-supply-chain.md),
 [FY-0030](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0030-actions-workflows-and-release-bot.md),
@@ -504,14 +508,16 @@ Following
 [FY-0022](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0022-bootstrap.md),
 some checks of this repository are not released yet. Until they are:
 
-- shellcheck, shfmt, prettier, markdownlint, typos and REUSE run locally before
-  every pull request; the atoms will provide them.
+- prettier, markdownlint, typos and REUSE run locally before every pull request;
+  the atoms will provide them.
 
 ## License
 
 [MIT](LICENSE).
 
 [action-shell-lib]: https://github.com/flakeyard/action-shell-lib
+[atom-nix]: https://github.com/flakeyard/atom-nix
+[atom-shell]: https://github.com/flakeyard/atom-shell
 [atom-workflows]: https://github.com/flakeyard/atom-workflows
 [adr-0001]:
   docs/adr/records/0001-run-the-steps-of-internal-actions-through-run-step-sh.md
