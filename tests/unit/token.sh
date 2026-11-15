@@ -11,7 +11,7 @@ token_case() {
   start_test
   apply CLIENT_ID="" HAS_KEY=false
   configure "$@"
-  run_step "token: $name" "$expected" "$ACTIONS/$step" "$step"
+  run_step "token: ${name}" "${expected}" "${ACTIONS}/${step}" "${step}"
   expect_param_message
   finish
 }
@@ -25,13 +25,13 @@ token_case "key without client ID" fail HAS_KEY=true \
 # The permissions that the token of the App asks for.
 if require_yq .github/actions/token/action.yml; then
   token_action=$(load_yaml .github/actions/token/action.yml)
-  yaml_check "$token_action" "token: the App token may write contents, issues, pull requests and workflows" \
+  yaml_check "${token_action}" "token: the App token may write contents, issues, pull requests and workflows" \
     '[.runs.steps[] | select(.id == "app") | .with | to_entries[] | select(.key | startswith("permission-"))] | from_entries
       == {"permission-contents": "write", "permission-issues": "write", "permission-pull-requests": "write", "permission-workflows": "write"}'
 fi
 
 start_test
 apply CLIENT_ID=Iv1 HAS_KEY=false
-run_hostile "token: earlier steps of the job run no code in it" fail "$ACTIONS/$step" "$step"
+run_hostile "token: earlier steps of the job run no code in it" fail "${ACTIONS}/${step}" "${step}"
 expect message "app-client-id is set but APP_PRIVATE_KEY is empty"
 finish

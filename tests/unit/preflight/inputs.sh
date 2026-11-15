@@ -12,7 +12,7 @@ inputs_case() {
   start_test
   apply EVENT=push CLIENT_ID="" HAS_KEY=false KEY_VISIBLE=true DEFAULT_BRANCH=main
   configure "$@"
-  run_step "preflight run: $name" "$expected" "$ACTIONS/preflight" "$step"
+  run_step "preflight run: ${name}" "${expected}" "${ACTIONS}/preflight" "${step}"
   expect_param_message
   finish
 }
@@ -37,8 +37,8 @@ skip_case() {
   start_test
   apply EVENT=push CLIENT_ID="" HAS_KEY=false KEY_VISIBLE=true DEFAULT_BRANCH=main
   configure "$@"
-  run_step "preflight run: $name" "$expected" "$ACTIONS/preflight" "$step"
-  expect output skip "$skip"
+  run_step "preflight run: ${name}" "${expected}" "${ACTIONS}/preflight" "${step}"
+  expect output skip "${skip}"
   expect_param_message
   finish
 }
@@ -53,6 +53,6 @@ skip_case "release/v1 is not skipped" ok "" REF=refs/heads/release/v1
 
 start_test
 apply EVENT=push CLIENT_ID="" HAS_KEY=false KEY_VISIBLE=true DEFAULT_BRANCH=main REF=refs/heads/release/v0
-run_hostile "preflight run: earlier steps of the job run no code in it" ok "$ACTIONS/preflight" "$step"
+run_hostile "preflight run: earlier steps of the job run no code in it" ok "${ACTIONS}/preflight" "${step}"
 expect output skip true
 finish

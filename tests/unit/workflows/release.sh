@@ -32,10 +32,10 @@ readonly GRAPH_DEFS='
 # their action.yml by name.
 internal_actions() {
   local file name
-  for file in "$root"/.github/actions/*/action.yml; do
+  for file in "${root}"/.github/actions/*/action.yml; do
     name=${file%/action.yml}
     name=${name##*/}
-    load_yaml "${file#"$root/"}" | jq -c --arg name "$name" '{($name): .}'
+    load_yaml "${file#"${root}/"}" | jq -c --arg name "${name}" '{($name): .}'
   done | jq -sc add
 }
 
@@ -43,11 +43,11 @@ internal_actions() {
 # true.
 graph_check() {
   local name=$1 filter=$2
-  workflow_check "$workflow" "release.yaml: $name" "$GRAPH_DEFS $filter" \
-    --arg presence "$KEY_PRESENCE" --argjson key_jobs "$KEY_JOBS" \
-    --arg own_or_pinned "$OWN_OR_PINNED" --argjson actions "$actions" \
-    --arg lib_pin "$LIBRARY_USES_FORM" --arg lib_path "$SHELL_LIB_PATH" \
-    --arg lib_input "$SHELL_LIB_INPUT"
+  workflow_check "${workflow}" "release.yaml: ${name}" "${GRAPH_DEFS} ${filter}" \
+    --arg presence "${KEY_PRESENCE}" --argjson key_jobs "${KEY_JOBS}" \
+    --arg own_or_pinned "${OWN_OR_PINNED}" --argjson actions "${actions}" \
+    --arg lib_pin "${LIBRARY_USES_FORM}" --arg lib_path "${SHELL_LIB_PATH}" \
+    --arg lib_input "${SHELL_LIB_INPUT}"
 }
 
 if require_yq .github/workflows/release.yaml; then
@@ -109,8 +109,8 @@ if require_yq .github/workflows/release.yaml; then
     and all(.runs.steps[] | select(runs_script); .env.SHELL_LIB == $lib_input)))'
   # Every step of an internal action that runs a script runs it through
   # run-step.sh (ADR-0001).
-  for action in "$root"/.github/actions/*/action.yml; do
-    check_action_steps "${action#"$root/"}"
+  for action in "${root}"/.github/actions/*/action.yml; do
+    check_action_steps "${action#"${root}/"}"
   done
   # The tests take the library at that commit (tests/lib/shell-lib.sh).
   check_library_pins

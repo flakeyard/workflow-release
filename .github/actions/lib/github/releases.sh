@@ -11,19 +11,19 @@ source "${BASH_SOURCE[0]%/*}/../version.sh"
 # there is none. The API answers a draft release by tag with HTTP 404.
 published_release() {
   local tag=$1
-  api_find "repos/$REPO/releases/tags/$tag"
+  api_find "repos/${REPO}/releases/tags/${tag}"
 }
 
 # published_releases PRERELEASES: print "TAG ID" of the published vX.Y.Z
 # releases, oldest version first; pre-releases only if PRERELEASES is true.
 published_releases() {
   local prereleases=$1 tag id
-  api_get "repos/$REPO/releases?per_page=100" --paginate --jq "
+  api_get "repos/${REPO}/releases?per_page=100" --paginate --jq "
     def published: .draft | not;
-    def wanted: $prereleases or (.prerelease | not);
+    def wanted: ${prereleases} or (.prerelease | not);
     .[] | select(published and wanted) | \"\(.tag_name) \(.id)\"" \
     | while read -r tag id; do
-      if is_release_tag "$tag"; then printf '%s %s\n' "$tag" "$id"; fi
+      if is_release_tag "${tag}"; then printf '%s %s\n' "${tag}" "${id}"; fi
     done | sort -V
 }
 
@@ -32,6 +32,6 @@ published_releases() {
 newest_release() {
   local major=$1 prereleases=false
   if ((major == 0)); then prereleases=true; fi
-  published_releases "$prereleases" | { grep -E "^v$major\." || true; } \
+  published_releases "${prereleases}" | { grep -E "^v${major}\." || true; } \
     | tail -n 1 | cut -d ' ' -f 1
 }

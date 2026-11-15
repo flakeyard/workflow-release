@@ -7,5 +7,5 @@
 # BRANCH.
 commit_runs_path() {
   local branch=$1 commit=$2
-  printf '%s\n' "repos/$REPO/actions/workflows/5/runs?branch=$branch&event=push&head_sha=$commit&per_page=1"
+  printf '%s\n' "repos/${REPO}/actions/workflows/5/runs?branch=${branch}&event=push&head_sha=${commit}&per_page=1"
 }

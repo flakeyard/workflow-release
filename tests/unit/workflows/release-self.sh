@@ -4,7 +4,7 @@
 # opened with GITHUB_TOKEN, are checked by a dispatched run of test.yaml.
 
 # self_test NAME FILTER: FILTER is true of release-self.yaml.
-self_test() { workflow_check "$self_workflow" "release-self.yaml: $1" "$2"; }
+self_test() { workflow_check "${self_workflow}" "release-self.yaml: $1" "$2"; }
 
 if require_yq .github/workflows/release-self.yaml; then
   self_workflow=$(load_workflow release-self.yaml)

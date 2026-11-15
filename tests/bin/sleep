@@ -6,6 +6,6 @@ set -euo pipefail
 shopt -s nullglob
 
 for late in "${FIXTURES:?}"/*.late; do
-  mv -- "$late" "${late%.late}"
+  mv -- "${late}" "${late%.late}"
 done
 exec "${TESTING_BIN:?}/sleep" "$@"
