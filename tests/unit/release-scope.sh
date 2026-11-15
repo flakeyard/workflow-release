@@ -6,16 +6,16 @@ step=release-scope
 # scope_setup PR...: the pull requests PR..., as pr_json prints them, are
 # pending in main, whose head is SHA.
 scope_setup() {
-  local pr numbers=()
+  local pr number numbers=()
   start_test
   apply BASE=main
   head_at "${SHA}"
   for pr; do
     pull "${pr}"
-    numbers+=("$(jq .number <<<"${pr}")")
+    number=$(jq .number <<<"${pr}")
+    numbers+=("${number}")
   done
-  pending_prs "$(jq -nc '[$ARGS.positional[] | {number: tonumber,
-    pull_request: {merged_at: "x"}}]' --args "${numbers[@]}")"
+  pending_numbers "${numbers[@]}"
 }
 
 # head_at COMMIT: the head of main is COMMIT.
@@ -35,7 +35,9 @@ config_at() {
 # moved_head_setup: #5 is pending since m5, and the head of main moved on to
 # h1; the configuration and the manifest at SHA are given.
 moved_head_setup() {
-  scope_setup "$(pr_json 5 m5)"
+  local pr5
+  pr5=$(pr_json 5 m5)
+  scope_setup "${pr5}"
   relation m5 ahead
   head_at h1
   config_at "${SHA}" '{"packages":{".":{}}}' 1.3.0
@@ -54,20 +56,24 @@ expect errors 0
 expect no-call "git/ref/heads"
 finish
 
-scope_setup "$(pr_json 4 "${SHA}")"
+pr4=$(pr_json 4 "${SHA}")
+scope_setup "${pr4}"
 apply LOG_GETS=1
 run_step "release-scope: this run's commit merged the pending pull request" ok "${ACTIONS}/${step}" "${step}"
 expect no-call "compare"
 finish
 
 # A takeover releases a pull request merged before SHA.
-scope_setup "$(pr_json 5 m5)"
+pr5=$(pr_json 5 m5)
+scope_setup "${pr5}"
 relation m5 ahead
 run_step "release-scope: pending since an earlier commit" ok "${ACTIONS}/${step}" "${step}"
 finish
 
 for status in behind diverged; do
-  scope_setup "$(pr_json 4 "${SHA}")" "$(pr_json 6 m6)"
+  pr4=$(pr_json 4 "${SHA}")
+  pr6=$(pr_json 6 m6)
+  scope_setup "${pr4}" "${pr6}"
   relation m6 "${status}"
   run_step "release-scope: pending pull request merged after the commit (${status})" fail "${ACTIONS}/${step}" "${step}"
   expect errors 1
@@ -75,7 +81,9 @@ for status in behind diverged; do
   finish
 done
 
-scope_setup "$(pr_json 6 m6)" "$(pr_json 7 m7 feature)"
+pr6=$(pr_json 6 m6)
+pr7=$(pr_json 7 m7 feature)
+scope_setup "${pr6}" "${pr7}"
 relation m6 behind
 relation m7 behind
 run_step "release-scope: every pull request merged after the commit is named" fail "${ACTIONS}/${step}" "${step}"
@@ -83,7 +91,8 @@ expect errors 2
 expect message "#7 is labelled"
 finish
 
-scope_setup "$(pr_json 5 m5)"
+pr5=$(pr_json 5 m5)
+scope_setup "${pr5}"
 fixture "repos/${REPO}/compare/m5...${SHA}" "HTTP 500"
 run_step "release-scope: an API error fails" fail "${ACTIONS}/${step}" "${step}"
 expect message "HTTP 500"
@@ -121,7 +130,8 @@ run_step "release-scope: an API error reading the head fails" fail "${ACTIONS}/$
 expect message "HTTP 500"
 finish
 
-scope_setup "$(pr_json 4 "${SHA}")"
+pr4=$(pr_json 4 "${SHA}")
+scope_setup "${pr4}"
 run_hostile "release-scope: earlier steps of the job run no code in it" ok "${ACTIONS}/${step}" "${step}"
 expect summary "every pending release pull request was merged at or before ${SHA}"
 finish

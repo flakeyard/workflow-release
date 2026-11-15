@@ -7,8 +7,9 @@ step=reconcile-pending-prs
 # branch by default, merged into BASE as commit mNUMBER, where the manifest has
 # VERSION.
 pr() {
-  local number=$1 base=$2 version=$3
-  pull "$(pr_json "${number}" "m${number}" "${4:-}" "${base}")"
+  local number=$1 base=$2 version=$3 pr_body
+  pr_body=$(pr_json "${number}" "m${number}" "${4:-}" "${base}")
+  pull "${pr_body}"
   manifest "${version}" "m${number}"
 }
 
@@ -85,8 +86,9 @@ finish
 start_test
 apply BASE=main
 pending_prs '[{"number":5,"pull_request":{"merged_at":"x"}}]'
-next_page "$(pending_path)" 2 '[{"number":6,"pull_request":{"merged_at":"x"}}]'
-transient_failures "$(pending_path)" 1
+path=$(pending_path)
+next_page "${path}" 2 '[{"number":6,"pull_request":{"merged_at":"x"}}]'
+transient_failures "${path}" 1
 pr 5 main 1.2.0
 pr 6 main 1.3.0
 release v1.3.0
@@ -101,7 +103,8 @@ finish
 start_test
 apply BASE=main
 run_step "reconcile: a missing pending list fails" fail "${ACTIONS}/${step}" "${step}"
-expect message "$(pending_path): Not Found (HTTP 404)"
+path=$(pending_path)
+expect message "${path}: Not Found (HTTP 404)"
 finish
 
 start_test
@@ -126,7 +129,8 @@ finish
 start_test
 apply BASE=main
 pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
-pull "$(pr_json 3 m3)"
+pr3=$(pr_json 3 m3)
+pull "${pr3}"
 run_step "reconcile: no manifest at the merge commit" ok "${ACTIONS}/${step}" "${step}"
 expect no-calls
 finish
@@ -135,11 +139,12 @@ finish
 # X.Y.Z leaves the pull request pending and reaches no API path. A release of
 # TAG, the tag such a version would give, exists but is never read.
 no_version_case() {
-  local name=$1 content=$2 tag=${3:-}
+  local name=$1 content=$2 tag=${3:-} pr3
   start_test
   apply BASE=main
   pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
-  pull "$(pr_json 3 m3)"
+  pr3=$(pr_json 3 m3)
+  pull "${pr3}"
   file_fixture "${REPO}" "${MANIFEST}" m3 "${content}"
   [[ -z ${tag} ]] || release "${tag}"
   run_step "reconcile: root version ${name}" ok "${ACTIONS}/${step}" "${step}"
@@ -155,7 +160,8 @@ no_version_case "in a manifest that is no JSON" 'not json'
 start_test
 apply BASE=main
 pending_prs '[{"number":3,"pull_request":{"merged_at":"x"}}]'
-pull "$(pr_json 3 m3)"
+pr3=$(pr_json 3 m3)
+pull "${pr3}"
 fixture "repos/${REPO}/contents/${MANIFEST}?ref=m3" "HTTP 500"
 run_step "reconcile: API error reading the manifest fails" fail "${ACTIONS}/${step}" "${step}"
 expect message "HTTP 500"

@@ -30,7 +30,10 @@ readonly CANNOT_PUBLISH="${TAG} is released but the run of its commit cannot pub
 
 # this_run_started: print when the first attempt of this run started.
 this_run_started() {
-  api_get "$(run_path "${RUN_ID}")/attempts/1" | jq -r .run_started_at
+  local path attempt
+  path=$(run_path "${RUN_ID}")
+  attempt=$(api_get "${path}/attempts/1")
+  jq -r .run_started_at <<<"${attempt}"
 }
 
 # published_at TAG: print when the release of TAG was published; empty when
@@ -69,8 +72,9 @@ wait_until_completed() {
 # rerun ID URL: rerun all jobs of a completed run; its publishing jobs were
 # skipped, not failed.
 rerun() {
-  local id=$1 url=$2
-  api_request POST "$(run_path "${id}")/rerun" >/dev/null \
+  local id=$1 url=$2 path
+  path=$(run_path "${id}")
+  gh api --silent -X POST "${path}/rerun" \
     || fail "could not rerun ${url}, the run of ${COMMIT} (runs can be rerun for 30 days); rerun it, or if it cannot be rerun: ${CANNOT_PUBLISH}"
 }
 

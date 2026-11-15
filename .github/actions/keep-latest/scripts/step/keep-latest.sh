@@ -22,7 +22,9 @@ newest=$(published_releases false | tail -n 1)
 read -r tag id <<<"${newest}"
 
 current=$(api_find "repos/${REPO}/releases/latest")
-if [[ -z ${current} || $(jq -r .id <<<"${current}") != "${id}" ]]; then
+current_id=""
+if [[ -n ${current} ]]; then current_id=$(jq -r .id <<<"${current}"); fi
+if [[ ${current_id} != "${id}" ]]; then
   gh api --silent -X PATCH "repos/${REPO}/releases/${id}" -f make_latest=true
   summary "marked ${tag} as latest"
 fi

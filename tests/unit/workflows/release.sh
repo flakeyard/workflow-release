@@ -31,12 +31,15 @@ readonly GRAPH_DEFS='
 # internal_actions: print the actions of .github/actions as one JSON object,
 # their action.yml by name.
 internal_actions() {
-  local file name
+  local file name json actions=""
   for file in "${root}"/.github/actions/*/action.yml; do
     name=${file%/action.yml}
     name=${name##*/}
-    load_yaml "${file#"${root}/"}" | jq -c --arg name "${name}" '{($name): .}'
-  done | jq -sc add
+    json=$(load_yaml "${file#"${root}/"}") || return
+    json=$(jq -c --arg name "${name}" '{($name): .}' <<<"${json}") || return
+    actions+=${json}$'\n'
+  done
+  jq -sc add <<<"${actions}"
 }
 
 # graph_check NAME FILTER: FILTER, a jq expression over the workflow, is

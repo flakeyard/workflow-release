@@ -18,7 +18,7 @@ window_path="repos/o/r/pulls?state=closed&base=main&sort=created&direction=desc&
 # pending PR...: these pull requests are pending, in release-please's window,
 # and release 1.3.0 at their merge commits.
 pending() {
-  local pr numbers=() number commit
+  local pr numbers=() number commit window
   for pr; do
     number=$(jq .number <<<"${pr}")
     commit=$(jq -r .merge_commit_sha <<<"${pr}")
@@ -26,27 +26,28 @@ pending() {
     pull "${pr}"
     manifest 1.3.0 "${commit}"
   done
-  pending_prs "$(jq -nc '[$ARGS.positional[] | {number: tonumber,
-    pull_request: {merged_at: "x"}}]' --args "${numbers[@]}")"
-  fixture "${window_path}" "$(jq -nc '[$ARGS.positional[] | {number: tonumber,
-    merged_at: "x"}]' --args "${numbers[@]}")"
+  pending_numbers "${numbers[@]}"
+  window=$(jq -nc '[$ARGS.positional[] | {number: tonumber, merged_at: "x"}]' --args "${numbers[@]}")
+  fixture "${window_path}" "${window}"
 }
 
 # merge_run COMMIT STATUS [CREATED]: run 77 is the push run of COMMIT, and
 # nobody reviewed it.
 merge_run() {
-  local commit=$1 status=$2 created=${3:-${merged}}
-  fixture "$(commit_runs_path main "${commit}")" "{\"workflow_runs\":[{\"id\":77,
+  local commit=$1 status=$2 created=${3:-${merged}} runs_path
+  runs_path=$(commit_runs_path main "${commit}")
+  fixture "${runs_path}" "{\"workflow_runs\":[{\"id\":77,
     \"status\":\"${status}\",\"created_at\":\"${created}\",\"html_url\":\"https://x/runs/77\"}]}"
   reviews 77
 }
 
 # reviews ID [ENVIRONMENT:STATE...]: the reviews of run ID, in API order.
 reviews() {
-  local id=$1
+  local id=$1 approvals
   shift
-  fixture "repos/${REPO}/actions/runs/${id}/approvals" "$(jq -nc '[$ARGS.positional[]
-    | split(":") | {state: .[1], environments: [{name: .[0]}]}]' --args "$@")"
+  approvals=$(jq -nc '[$ARGS.positional[]
+    | split(":") | {state: .[1], environments: [{name: .[0]}]}]' --args "$@")
+  fixture "repos/${REPO}/actions/runs/${id}/approvals" "${approvals}"
 }
 
 # plan_setup [NAME=VALUE...]: run 100 of workflow 5 on main, gated by the
@@ -73,8 +74,10 @@ expect_due() {
 # takeover_setup [NAME=VALUE...]: #5 merged as m5 is pending, and its run 77
 # completed without a review.
 takeover_setup() {
+  local pr5
   plan_setup "$@"
-  pending "$(pr_json 5 m5)"
+  pr5=$(pr_json 5 m5)
+  pending "${pr5}"
   merge_run m5 completed
 }
 
@@ -93,11 +96,13 @@ repair_setup() {
 # earlier_runs RUN...: the newest push runs on main after this run 100, each
 # created a minute earlier than the one before.
 earlier_runs() {
-  fixture "${branch_runs_path}" "$(jq -nc --arg now "${this_run_created}" '
+  local runs
+  runs=$(jq -nc --arg now "${this_run_created}" '
     [{id: 100, status: "in_progress", created_at: $now}] + ([$ARGS.positional[]
     | fromjson] | to_entries | map(.value + {html_url: "https://x/runs/\(.value.id)",
     created_at: "2026-11-02T11:\(58 - .key):00Z"}))
-    | {workflow_runs: .}' --args "$@")"
+    | {workflow_runs: .}' --args "$@")
+  fixture "${branch_runs_path}" "${runs}"
 }
 
 plan_setup
@@ -107,7 +112,8 @@ expect message "::notice::No release due."
 finish
 
 plan_setup
-fixture "repos/${REPO}/commits/${SHA}/pulls" "[$(pr_json 4 "${SHA}")]"
+pr4=$(pr_json 4 "${SHA}")
+fixture "repos/${REPO}/commits/${SHA}/pulls" "[${pr4}]"
 manifest 1.3.0
 run_step "release-plan: this push merged a pending release pull request" ok "${ACTIONS}/${step}" "${step}"
 expect_due true release
@@ -116,9 +122,11 @@ finish
 # An approval releases every pending pull request, so the plan lists the
 # others also when this push is due.
 plan_setup
-fixture "repos/${REPO}/commits/${SHA}/pulls" "[$(pr_json 4 "${SHA}")]"
+pr4=$(pr_json 4 "${SHA}")
+fixture "repos/${REPO}/commits/${SHA}/pulls" "[${pr4}]"
 manifest 1.3.0
-pending "$(pr_json 4 "${SHA}")" "$(pr_json 5 m5)"
+pr5=$(pr_json 5 m5)
+pending "${pr4}" "${pr5}"
 manifest 1.2.4 m5
 merge_run m5 in_progress
 run_step "release-plan: lists the other pending pull requests when due" ok "${ACTIONS}/${step}" "${step}"
@@ -129,29 +137,35 @@ finish
 
 # An approval would also release #5, whose run can never publish it.
 plan_setup
-fixture "repos/${REPO}/commits/${SHA}/pulls" "[$(pr_json 4 "${SHA}")]"
+pr4=$(pr_json 4 "${SHA}")
+fixture "repos/${REPO}/commits/${SHA}/pulls" "[${pr4}]"
 manifest 1.3.0
-pending "$(pr_json 4 "${SHA}")" "$(pr_json 5 m5)"
+pr5=$(pr_json 5 m5)
+pending "${pr4}" "${pr5}"
 manifest 1.2.4 m5
-fixture "$(commit_runs_path main m5)" '{"workflow_runs":[]}'
+runs_path=$(commit_runs_path main m5)
+fixture "${runs_path}" '{"workflow_runs":[]}'
 run_step "release-plan: due, but another pending release is unpublishable" fail "${ACTIONS}/${step}" "${step}"
 expect message "the release of #5 at m5 can never be published"
 finish
 
 plan_setup
-fixture "repos/${REPO}/commits/${SHA}/pulls" "[$(pr_json 4 "${SHA}" "${head}" release/v1)]"
+pr4=$(pr_json 4 "${SHA}" "${head}" release/v1)
+fixture "repos/${REPO}/commits/${SHA}/pulls" "[${pr4}]"
 run_step "release-plan: merged into another branch" ok "${ACTIONS}/${step}" "${step}"
 expect_due false
 finish
 
 plan_setup
-fixture "repos/${REPO}/commits/${SHA}/pulls" "[$(pr_json 4 "${SHA}" feature)]"
+pr4=$(pr_json 4 "${SHA}" feature)
+fixture "repos/${REPO}/commits/${SHA}/pulls" "[${pr4}]"
 run_step "release-plan: merged from another head branch" ok "${ACTIONS}/${step}" "${step}"
 expect_due false
 finish
 
 plan_setup
-fixture "repos/${REPO}/commits/${SHA}/pulls" "[$(pr_json 4 "${SHA}")]"
+pr4=$(pr_json 4 "${SHA}")
+fixture "repos/${REPO}/commits/${SHA}/pulls" "[${pr4}]"
 release v1.2.3
 run_step "release-plan: merged, and its release exists" ok "${ACTIONS}/${step}" "${step}"
 expect_due false
@@ -164,7 +178,8 @@ expect_due false
 finish
 
 plan_setup
-pending "$(pr_json 5 m5 feature)"
+pr5=$(pr_json 5 m5 feature)
+pending "${pr5}"
 run_step "release-plan: pending from a foreign head branch" ok "${ACTIONS}/${step}" "${step}"
 expect_due false
 expect message "::warning::#5 is labelled autorelease: pending but is not from ${head}"
@@ -191,14 +206,16 @@ unversioned_case "in a manifest that is no JSON" 'not json'
 
 # The merge commit predates the manifest: the contents API answers 404.
 takeover_setup
-rm -- "$(fixture_file "repos/${REPO}/contents/${MANIFEST}?ref=m5")"
+file=$(fixture_file "repos/${REPO}/contents/${MANIFEST}?ref=m5")
+rm -- "${file}"
 run_step "release-plan: pending without a manifest at its merge commit" ok "${ACTIONS}/${step}" "${step}"
 expect_due false
 expect message "has no root version X.Y.Z, so it is never due"
 finish
 
 plan_setup
-fixture "repos/${REPO}/commits/${SHA}/pulls" "[$(pr_json 4 "${SHA}")]"
+pr4=$(pr_json 4 "${SHA}")
+fixture "repos/${REPO}/commits/${SHA}/pulls" "[${pr4}]"
 manifest 01.3.0
 run_step "release-plan: merged with a root version that is not X.Y.Z" ok "${ACTIONS}/${step}" "${step}"
 expect_due false
@@ -206,7 +223,8 @@ expect message "::warning::#4 is pending, but ${MANIFEST} at its merge commit ${
 finish
 
 plan_setup
-pending "$(pr_json 5 m5)"
+pr5=$(pr_json 5 m5)
+pending "${pr5}"
 fixture "${window_path}" '[{"number":6,"merged_at":"x"}]'
 run_step "release-plan: pending beyond release-please's window" ok "${ACTIONS}/${step}" "${step}"
 expect_due false
@@ -214,8 +232,10 @@ expect message "::warning::#5 is pending but not among the 200 merged pull reque
 finish
 
 plan_setup
-pending "$(pr_json 5 m5)"
-fixture "${window_path}" "$(jq -nc '[range(100) | {number: (1000 + .), merged_at: "x"}]')"
+pr5=$(pr_json 5 m5)
+pending "${pr5}"
+window=$(jq -nc '[range(100) | {number: (1000 + .), merged_at: "x"}]')
+fixture "${window_path}" "${window}"
 fixture "${window_path%1}2" '[{"number":7,"merged_at":null},{"number":5,"merged_at":"x"}]'
 merge_run m5 completed
 run_step "release-plan: pending on the second page of the window" ok "${ACTIONS}/${step}" "${step}"
@@ -223,9 +243,12 @@ expect_due true takeover
 finish
 
 plan_setup
-pending "$(pr_json 5 m5)"
-fixture "${window_path}" "$(jq -nc '[range(100) | {number: (1000 + .), merged_at: "x"}]')"
-fixture "${window_path%1}2" "$(jq -nc '[range(100) | {number: (2000 + .), merged_at: "x"}]')"
+pr5=$(pr_json 5 m5)
+pending "${pr5}"
+window=$(jq -nc '[range(100) | {number: (1000 + .), merged_at: "x"}]')
+fixture "${window_path}" "${window}"
+window=$(jq -nc '[range(100) | {number: (2000 + .), merged_at: "x"}]')
+fixture "${window_path%1}2" "${window}"
 fixture "${window_path%1}3" '[{"number":5,"merged_at":"x"}]'
 run_step "release-plan: the window ends after 200 merged pull requests" ok "${ACTIONS}/${step}" "${step}"
 expect_due false
@@ -268,7 +291,8 @@ finish
 
 for environment in release ""; do
   takeover_setup ENVIRONMENT="${environment}"
-  fixture "$(commit_runs_path main m5)" '{"workflow_runs":[]}'
+  runs_path=$(commit_runs_path main m5)
+  fixture "${runs_path}" '{"workflow_runs":[]}'
   run_step "release-plan: the merge commit has no run (environment '${environment}')" fail "${ACTIONS}/${step}" "${step}"
   expect message "the release of #5 at m5 can never be published from the run of its commit: its merge commit has no push run of this workflow; abandon v1.3.0 (README, Abandon)"
   expect output due ""
@@ -334,7 +358,8 @@ finish
 plan_setup
 # shellcheck disable=SC2016 # the backticks are part of the title
 title='release [x](https://e) **b** `c`'
-fixture "repos/${REPO}/commits/${SHA}/pulls" "[$(pr_json 4 "${SHA}" "${head}" main "${merged}" "${title}")]"
+pr4=$(pr_json 4 "${SHA}" "${head}" main "${merged}" "${title}")
+fixture "repos/${REPO}/commits/${SHA}/pulls" "[${pr4}]"
 manifest 1.3.0
 run_step "release-plan: a title is printed as code" ok "${ACTIONS}/${step}" "${step}"
 expect_due true release
@@ -347,7 +372,8 @@ expect_due true repair
 finish
 
 repair_setup
-rm -- "$(fixture_file "repos/${REPO}/git/ref/tags/v1")"
+file=$(fixture_file "repos/${REPO}/git/ref/tags/v1")
+rm -- "${file}"
 run_step "release-plan: v1 is missing" ok "${ACTIONS}/${step}" "${step}"
 expect_due true repair
 finish
@@ -413,7 +439,8 @@ finish
 
 # A failure after a finding still writes the finding as a notice.
 plan_setup MOVE_MAJOR_TAG=true
-pending "$(pr_json 5 m5)"
+pr5=$(pr_json 5 m5)
+pending "${pr5}"
 merge_run m5 in_progress
 manifest 1.2
 run_step "release-plan: a failure writes the findings before it" fail "${ACTIONS}/${step}" "${step}"
@@ -422,7 +449,8 @@ expect message "::notice::not due: https://x/runs/77, the run of #5"
 finish
 
 plan_setup MOVE_MAJOR_TAG=true
-rm -- "$(fixture_file "repos/${REPO}/contents/${MANIFEST}?ref=${SHA}")"
+file=$(fixture_file "repos/${REPO}/contents/${MANIFEST}?ref=${SHA}")
+rm -- "${file}"
 run_step "release-plan: a missing manifest is named" fail "${ACTIONS}/${step}" "${step}"
 expect message "${MANIFEST} does not exist at ${SHA}"
 finish
