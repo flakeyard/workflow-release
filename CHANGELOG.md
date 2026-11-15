@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.8](https://github.com/flakeyard/workflow-release/compare/v0.2.7...v0.2.8) (2026-11-15)
+
+
+### Bug Fixes
+
+* **deps:** update flakeyard/action-shell-lib action to v0.3.2 ([#91](https://github.com/flakeyard/workflow-release/issues/91)) ([a9d61da](https://github.com/flakeyard/workflow-release/commit/a9d61da33e7a38854c35f604bd45e99097571cdb))
+* keep the exit codes of command substitutions and of functions under set -e ([#86](https://github.com/flakeyard/workflow-release/issues/86)) ([2b86843](https://github.com/flakeyard/workflow-release/commit/2b8684377a8cfccfb96ebc77138489bcb08b3006))
+
 ## [0.2.7](https://github.com/flakeyard/workflow-release/compare/v0.2.6...v0.2.7) (2026-11-12)
 
 
