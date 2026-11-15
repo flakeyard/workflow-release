@@ -25,19 +25,15 @@ source "${SHELL_LIB}/report.sh"
 RELEASE_HEAD=$(release_head "${BASE}")
 readonly RELEASE_HEAD
 
-# is_release_pr PR: PR comes from release-please's branch for BASE. The plan
-# warns about other pull requests labelled pending.
-is_release_pr() {
-  local pr=$1
-  [[ $(jq -r .head.ref <<<"${pr}") == "${RELEASE_HEAD}" ]]
-}
-
 # reconcile PR: relabel PR as tagged once its release exists. The released
 # version is the manifest's at the merge commit; without a root version X.Y.Z
-# there, PR is left for the plan to warn about.
+# there, PR is left for the plan to warn about. Only a PR from release-please's
+# branch for BASE is relabelled; the plan warns about other pull requests
+# labelled pending.
 reconcile() {
-  local pr=$1 number merge_commit version tag release
-  is_release_pr "${pr}" || return 0
+  local pr=$1 head number merge_commit version tag release
+  head=$(jq -r .head.ref <<<"${pr}")
+  [[ ${head} == "${RELEASE_HEAD}" ]] || return 0
   number=$(jq -r .number <<<"${pr}")
   merge_commit=$(jq -r .merge_commit_sha <<<"${pr}")
   version=$(find_release_version "${merge_commit}")

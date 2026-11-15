@@ -17,8 +17,9 @@ commit_run_fixture() {
 # commit_runs_fixture BRANCH: run 77 is the push run of the release commit on
 # BRANCH.
 commit_runs_fixture() {
-  local branch=$1
-  fixture "$(commit_runs_path "${branch}" "${commit}")" '{"workflow_runs":[{"id":77,"html_url":"https://x/runs/77"}]}'
+  local branch=$1 runs_path
+  runs_path=$(commit_runs_path "${branch}" "${commit}")
+  fixture "${runs_path}" '{"workflow_runs":[{"id":77,"html_url":"https://x/runs/77"}]}'
 }
 
 # rerun_setup [NAME=VALUE...]: this run 100 of workflow 5 on main created the
@@ -66,7 +67,8 @@ expect no-calls
 finish
 
 rerun_setup
-fixture "$(commit_runs_path main "${commit}")" '{"workflow_runs":[]}'
+runs_path=$(commit_runs_path main "${commit}")
+fixture "${runs_path}" '{"workflow_runs":[]}'
 run_step "rerun-release-commit: no run of the release commit fails" fail "${ACTIONS}/${step}" "${step}"
 expect message "no push run of this workflow at bbb on main: v1.2.3 is released but the run of its commit cannot publish it; cut the next patch release"
 expect no-message abandon

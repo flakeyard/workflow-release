@@ -21,21 +21,12 @@ source "${SHELL_LIB}/report.sh"
 readonly MAINTENANCE_BRANCH='^refs/heads/release/v[1-9][0-9]*$'
 readonly ZERO_BRANCH=refs/heads/release/v0
 
-# is_zero_branch: REF is release/v0, which has no releases of its own.
-is_zero_branch() {
-  [[ ${REF} == "${ZERO_BRANCH}" && ${REF} != "refs/heads/${DEFAULT_BRANCH}" ]]
-}
-
-# is_release_branch: REF is the default branch or release/vN with N >= 1.
-is_release_branch() {
-  [[ ${REF} == "refs/heads/${DEFAULT_BRANCH}" || ${REF} =~ ${MAINTENANCE_BRANCH} ]]
-}
-
 if [[ ${EVENT} != push ]]; then
   fail "the release workflow runs only on push events, not ${EVENT}"
 fi
 : "${DEFAULT_BRANCH:?}"
-if is_zero_branch; then
+# release/v0 has no releases of its own.
+if [[ ${REF} == "${ZERO_BRANCH}" && ${REF} != "refs/heads/${DEFAULT_BRANCH}" ]]; then
   notice "releases 0.y.z are made only on ${DEFAULT_BRANCH}; nothing to do on release/v0"
   echo "skip=true" >>"${GITHUB_OUTPUT}"
   exit 0
@@ -43,6 +34,7 @@ fi
 # An environment secret is visible only in jobs of that environment; the
 # token action checks the key there.
 if [[ ${KEY_VISIBLE} == true ]]; then check_app_key "${CLIENT_ID}" "${HAS_KEY}"; fi
-if ! is_release_branch; then
+# Releases run on the default branch and on release/vN with N >= 1.
+if [[ ${REF} != "refs/heads/${DEFAULT_BRANCH}" && ! ${REF} =~ ${MAINTENANCE_BRANCH} ]]; then
   fail "releases run only on ${DEFAULT_BRANCH} and release/vN with N >= 1, not ${REF}"
 fi

@@ -19,8 +19,18 @@ pending_path() {
 
 # pending_prs BODY: the closed pull requests labelled pending.
 pending_prs() {
-  local body=$1
-  fixture "$(pending_path)" "${body}"
+  local body=$1 path
+  path=$(pending_path)
+  fixture "${path}" "${body}"
+}
+
+# pending_numbers NUMBER...: the merged pull requests NUMBER..., labelled
+# pending.
+pending_numbers() {
+  local body
+  body=$(jq -nc '[$ARGS.positional[] | {number: tonumber,
+    pull_request: {merged_at: "x"}}]' --args "$@")
+  pending_prs "${body}"
 }
 
 # pr_json NUMBER COMMIT [HEAD] [BASE] [MERGED_AT] [TITLE]: a pull request

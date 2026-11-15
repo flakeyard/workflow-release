@@ -25,7 +25,11 @@ trap 'rm -rf -- "$shared"' EXIT
 sysbin=${shared}/bin
 mkdir "${sysbin}"
 for tool in "${RUNNER_TOOLS[@]}"; do
-  ln -s "$(command -v "${tool}")" "${sysbin}/${tool}"
+  tool_path=$(command -v "${tool}") || {
+    echo "tests: no ${tool} on PATH" >&2
+    exit 2
+  }
+  ln -s "${tool_path}" "${sysbin}/${tool}"
 done
 
 # The copy of the library that the steps run, whose SYSTEM_PATH is the stubs

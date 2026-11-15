@@ -10,12 +10,14 @@ ok='"include-component-in-tag":false,"packages":{".":{}}'
 # config=JSON, {$ok} by default, with the root version version=X.Y.Z, 0.0.0 by
 # default, and the given overrides.
 config_case() {
-  local name=$1 expected=$2
+  local name=$1 expected=$2 version configuration
   shift 2
   start_test
   configure "$@"
-  file_fixture "${REPO}" "${CONFIG}" "${SHA}" "$(param config "{${ok}}")"
-  manifest "$(param version 0.0.0)"
+  configuration=$(param config "{${ok}}")
+  file_fixture "${REPO}" "${CONFIG}" "${SHA}" "${configuration}"
+  version=$(param version 0.0.0)
+  manifest "${version}"
   run_step "preflight config: ${name}" "${expected}" "${ACTIONS}/preflight" "${step}"
   finish
 }

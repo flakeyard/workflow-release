@@ -14,8 +14,9 @@ source "${BASH_SOURCE[0]%/*}/version.sh"
 # root_version REF: print the version of the root package in MANIFEST at a
 # commit; empty when there is none. Fails when there is no MANIFEST.
 root_version() {
-  local ref=$1
-  required_file "${MANIFEST}" "${ref}" | jq -r '."." // empty'
+  local ref=$1 content
+  content=$(required_file "${MANIFEST}" "${ref}") || return
+  jq -r '."." // empty' <<<"${content}"
 }
 
 # find_release_version REF: print the version of the root package in MANIFEST

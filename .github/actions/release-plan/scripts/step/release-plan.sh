@@ -70,22 +70,17 @@ end_step() {
 }
 trap end_step EXIT
 
-# is_branch_creation: the push created a branch, such as release/vN at a
-# release; nothing is pending on a new branch.
-is_branch_creation() {
-  [[ ${NEW_BRANCH:-} == true ]]
-}
-
 # describe PR: print a pull request for the summary. Its title and head
 # branch are chosen by others and printed as code.
 describe() {
   local pr=$1 number title commit head
   number=$(jq -r .number <<<"${pr}")
   title=$(jq -r .title <<<"${pr}")
+  title=$(code_span "${title}")
   commit=$(jq -r .merge_commit_sha <<<"${pr}")
   head=$(jq -r .head.ref <<<"${pr}")
-  printf '#%s %s, merged as %s from %s\n' "${number}" "$(code_span "${title}")" \
-    "${commit}" "$(code_span "${head}")"
+  head=$(code_span "${head}")
+  printf '#%s %s, merged as %s from %s\n' "${number}" "${title}" "${commit}" "${head}"
 }
 
 # pr_tag PR: print the tag that merging PR releases, from the manifest at its
@@ -140,20 +135,15 @@ merged_here() {
 # check_release: due when SHA merged a pending release pull request whose
 # release does not exist yet.
 check_release() {
-  local pr tag
+  local pr tag described
   pr=$(merged_here)
   [[ -n ${pr} ]] || return 0
   find_unreleased_tag "${pr}"
   tag=${unreleased_tag}
   [[ -n ${tag} ]] || return 0
   decide release
-  note "release of ${tag}: this push merged $(describe "${pr}")"
-}
-
-# in_window NUMBER WINDOW: release-please reads pull request NUMBER.
-in_window() {
-  local number=$1 window=$2
-  grep -qx -- "${number}" <<<"${window}"
+  described=$(describe "${pr}")
+  note "release of ${tag}: this push merged ${described}"
 }
 
 # check_pending: check the merged release pull requests into BASE that are
@@ -170,18 +160,20 @@ check_pending() {
 
 # check_pending_pr PR WINDOW: check a pending pull request that SHA did not
 # merge, and list it: release-please releases it too when the job that
-# releases runs. One that release-please would not release only gets a
-# warning, so that it does not ask for approval on every push.
+# releases runs, if its number is a line of WINDOW. One that release-please
+# would not release only gets a warning, so that it does not ask for approval
+# on every push.
 check_pending_pr() {
-  local pr=$1 window=$2 number commit head
+  local pr=$1 window=$2 number commit head described
   number=$(jq -r .number <<<"${pr}")
   commit=$(jq -r .merge_commit_sha <<<"${pr}")
   head=$(jq -r .head.ref <<<"${pr}")
   [[ ${commit} != "${SHA}" ]] || return 0
-  note "also pending: $(describe "${pr}")"
+  described=$(describe "${pr}")
+  note "also pending: ${described}"
   if [[ ${head} != "${RELEASE_HEAD}" ]]; then
     warning "#${number} is labelled ${PENDING_LABEL} but is not from ${RELEASE_HEAD}, so it releases nothing; remove the label"
-  elif ! in_window "${number}" "${window}"; then
+  elif ! grep -qx -- "${number}" <<<"${window}"; then
     warning "#${number} is pending but not among the ${RELEASE_PLEASE_WINDOW} merged pull requests that release-please reads, so it releases nothing; relabel it autorelease: abandoned"
   else
     check_unreleased "${pr}"
@@ -225,12 +217,13 @@ unpublishable() {
 # PR, has not completed yet (queued, in_progress, waiting, pending or
 # requested), so that it releases by itself, or its release was rejected.
 check_merge_run() {
-  local pr=$1 tag=$2 run=$3 id url status review
+  local pr=$1 tag=$2 run=$3 id url status review described
   id=$(jq -r .id <<<"${run}")
   url=$(jq -r .html_url <<<"${run}")
   status=$(jq -r .status <<<"${run}")
   if [[ ${status} != completed ]]; then
-    note "not due: ${url}, the run of $(describe "${pr}"), is ${status} and releases ${tag}"
+    described=$(describe "${pr}")
+    note "not due: ${url}, the run of ${described}, is ${status} and releases ${tag}"
     return 0
   fi
   review=$(run_review "${id}" "${ENVIRONMENT}")
@@ -243,9 +236,10 @@ check_merge_run() {
 
 # take_over PR TAG WHY: due to release TAG for PR, whose run did not.
 take_over() {
-  local pr=$1 tag=$2 why=$3
+  local pr=$1 tag=$2 why=$3 described
   decide takeover
-  note "takeover of ${tag}: ${why}; $(describe "${pr}")"
+  described=$(describe "${pr}")
+  note "takeover of ${tag}: ${why}; ${described}"
 }
 
 # check_repair: due when vX of the manifest's major must be created or moved
@@ -313,7 +307,9 @@ write_decision() {
 summary "Release plan of ${SHA} on ${BASE}. This is a hint, not evidence:" \
   "before approving, check the repository (README, Approval)."
 summary ""
-if is_branch_creation; then
+# The push created a branch, such as release/vN at a release; nothing is
+# pending on a new branch.
+if [[ ${NEW_BRANCH:-} == true ]]; then
   note "not due: the push created ${BASE}"
   write_decision
   exit 0
