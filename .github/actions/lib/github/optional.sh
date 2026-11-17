@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 # Calls of the GitHub API whose resource may be missing, on top of api_request
-# of action-shell-lib. Source this file; it expects SHELL_LIB.
+# of lib-actions. Source this file; it expects SHELL_LIB.
 
 # shellcheck source=/dev/null
 source "${SHELL_LIB}/github/api.sh"

@@ -439,12 +439,12 @@ referenced with `$/`:
 - `dispatch-checks`: checks of the release pull request when `GITHUB_TOKEN`
   updates it.
 
-Each job first calls [action-shell-lib][action-shell-lib] once, pinned by
-commit, and passes its directory to the actions as the input `shell-lib`; the
-actions do not call the library themselves. Each step of an action that runs a
-script runs `scripts/step/<step>.sh` through `run-step.sh` of the library, with
-only the variables that its run line names ([ADR-0001][adr-0001]): earlier steps
-of the job cannot run code in it through `BASH_ENV`, exported functions or
+Each job first calls [lib-actions][lib-actions] once, pinned by commit, and
+passes its directory to the actions as the input `shell-lib`; the actions do not
+call the library themselves. Each step of an action that runs a script runs
+`scripts/step/<step>.sh` through `run-step.sh` of the library, with only the
+variables that its run line names ([ADR-0001][adr-0001]): earlier steps of the
+job cannot run code in it through `BASH_ENV`, exported functions or
 `BASH_SOURCE`, and the script runs the tools of the runner, `SYSTEM_PATH` of
 `env.sh`. A step is named after its action, except the steps `inputs` and
 `config` of `preflight` and `pause` of `release-pr`. The scripts source
@@ -460,8 +460,8 @@ them with the harness, the fixtures and the stubs of `gh`, `date` and `sleep` in
 `internal/testing` of the library, which `tests/bin` extends with `gh workflow`
 and fixtures that appear after a sleep; it takes the library at the commit that
 `release.yaml` pins: CI passes it in `SHELL_LIB`, and otherwise `tests/run.sh`
-fetches it with `git` into `~/.cache/flakeyard/action-shell-lib/<commit>`. The
-suites in `tests/unit` mirror the actions and share the helpers in `tests/lib`.
+fetches it with `git` into `~/.cache/flakeyard/lib-actions/<commit>`. The suites
+in `tests/unit` mirror the actions and share the helpers in `tests/lib`.
 `tests/unit/workflows` has one file per workflow. `release.sh` checks the job
 graph: only `Release` and, with the App, `Release pull request` reach the
 environment and the key, `Release` runs only when it is due or there is no
@@ -515,7 +515,7 @@ some checks of this repository are not released yet. Until they are:
 
 [MIT](LICENSE).
 
-[action-shell-lib]: https://github.com/flakeyard/action-shell-lib
+[lib-actions]: https://github.com/flakeyard/lib-actions
 [atom-nix]: https://github.com/flakeyard/atom-nix
 [atom-shell]: https://github.com/flakeyard/atom-shell
 [atom-workflows]: https://github.com/flakeyard/atom-workflows

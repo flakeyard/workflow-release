@@ -13,7 +13,7 @@ readonly KEY_PRESENCE="secrets.APP_PRIVATE_KEY != ''"
 # References to actions that are not code of the calling repository: actions
 # of this workflow's repository, and others pinned by commit.
 readonly OWN_OR_PINNED='^(\$/\.github/actions/[a-z-]+|[a-z0-9-]+/[a-z0-9-]+@[0-9a-f]{40})$'
-# The path of action-shell-lib, and the input of the actions of this
+# The path of lib-actions, and the input of the actions of this
 # repository that gets it; LIBRARY_USES_FORM of the library is its pin.
 readonly SHELL_LIB_PATH='${{ steps.lib.outputs.path }}'
 readonly SHELL_LIB_INPUT='${{ inputs.shell-lib }}'
@@ -23,7 +23,7 @@ readonly GRAPH_DEFS='
   def key_references: tostring | gsub($presence; "") | contains("secrets.APP_PRIVATE_KEY");
   def gated: has("environment");
   def own_action: (.uses // "") | startswith("$/");
-  def library: (.uses // "") | test("action-shell-lib");
+  def library: (.uses // "") | test("lib-actions");
   def sources_library: $actions[.uses | ltrimstr("$/.github/actions/")].inputs | has("shell-lib");
   def runs_script: (.run // "") | contains("$GITHUB_ACTION_PATH/");
 '

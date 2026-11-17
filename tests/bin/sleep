@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stub of sleep for tests: a fixture saved as <key>.late appears under <key>
 # at the first sleep, like a ref that becomes visible; then the stub of
-# action-shell-lib in TESTING_BIN records the sleep.
+# lib-actions in TESTING_BIN records the sleep.
 set -euo pipefail
 shopt -s nullglob
 

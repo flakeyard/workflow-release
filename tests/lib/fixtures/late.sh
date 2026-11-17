@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 # Responses of the gh stub that change while a script runs, on top of
-# internal/testing/fixtures.sh of action-shell-lib.
+# internal/testing/fixtures.sh of lib-actions.
 
 # late PATH: the fixture of PATH appears only after the script sleeps.
 late() {
