@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Files of REPO that a step needs, on top of file_at of action-shell-lib.
+# Files of REPO that a step needs, on top of file_at of lib-actions.
 # Source this file; it expects SHELL_LIB and REPO.
 
 # shellcheck source=/dev/null

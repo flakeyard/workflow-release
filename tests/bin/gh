@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stub of gh for tests: "gh workflow ARG..." is appended to $CALLS as
 # "workflow ARG..." and succeeds; every other command goes to the stub of
-# action-shell-lib in TESTING_BIN.
+# lib-actions in TESTING_BIN.
 set -euo pipefail
 
 if [[ ${1-} == workflow ]]; then

@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 # The run that every test starts with and its parameters, and the copy of the
-# library that the steps run, on top of case.sh of action-shell-lib. Source this
+# library that the steps run, on top of case.sh of lib-actions. Source this
 # file after it, consumer/library.sh and consumer/step.sh; it expects root, the
 # repository's directory, and SHELL_LIB, the directory of the library.
 # shellcheck disable=SC2034 # ACTIONS and stub_variables: read by the suites and step.sh

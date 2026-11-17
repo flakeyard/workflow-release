@@ -3,7 +3,7 @@ description: Marks the newest published vX.Y.Z as latest, also after a release f
 inputs:
   shell-lib:
     description: >-
-      Directory of action-shell-lib: the output path of its step in the job,
+      Directory of lib-actions: the output path of its step in the job,
       whose modules the scripts source.
     required: true
   token:

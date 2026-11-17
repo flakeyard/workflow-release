@@ -12,12 +12,13 @@ review_by:
 
 ## Context
 
-Each job of `release.yaml` calls [action-shell-lib][asl-0001] once, as its first
-step, and gives its directory to the internal actions of `.github/actions` as
-the input `shell-lib`. Each action runs its `run.sh`, or `preflight/inputs.sh`
-and `preflight/config.sh`, from `shell: bash`, with every variable of the job,
-and the script sources the modules of the library and of `.github/actions/lib`.
-`release-pr` pauses before its retry with `sleep 30` from `shell: bash`.
+Each job of `release.yaml` calls [lib-actions][lib-actions-0001] once, as its
+first step, and gives its directory to the internal actions of `.github/actions`
+as the input `shell-lib`. Each action runs its `run.sh`, or
+`preflight/inputs.sh` and `preflight/config.sh`, from `shell: bash`, with every
+variable of the job, and the script sources the modules of the library and of
+`.github/actions/lib`. `release-pr` pauses before its retry with `sleep 30` from
+`shell: bash`.
 
 An earlier step of a job can set any variable for the steps after it, through
 `GITHUB_ENV` and `GITHUB_PATH`. `BASH_ENV` then runs a file before the script,
@@ -29,14 +30,14 @@ create-github-app-token, but any of them, or a later change of a job, could
 steer every script of the workflow, with the token of its job; in the job
 `Release`, with the token of the App.
 
-[FY-0035][fy-0035] and [action-shell-lib ADR-0001][asl-0001] answer this threat
-for consumers of the library: `run-step.sh STEP_DIR STEP [VARIABLE...]` runs the
-script `STEP_DIR/STEP.sh` with `/usr/bin/env -i` and `/usr/bin/bash -p`, with
-only the variables named on the run line of the step and `SHELL_LIB`, and finds
-its own modules from `$0`. `step_environment` of `env.sh` then sets `PATH` to
-`SYSTEM_PATH`, the tools of the runner, and keeps the `PATH` of the job in
-`JOB_PATH`. action-setup-nix, action-flake-lock and workflow-check run every
-step of their actions this way.
+[FY-0035][fy-0035] and [lib-actions ADR-0001][lib-actions-0001] answer this
+threat for consumers of the library: `run-step.sh STEP_DIR STEP [VARIABLE...]`
+runs the script `STEP_DIR/STEP.sh` with `/usr/bin/env -i` and
+`/usr/bin/bash -p`, with only the variables named on the run line of the step
+and `SHELL_LIB`, and finds its own modules from `$0`. `step_environment` of
+`env.sh` then sets `PATH` to `SYSTEM_PATH`, the tools of the runner, and keeps
+the `PATH` of the job in `JOB_PATH`. action-setup-nix, action-flake-lock and
+workflow-check run every step of their actions this way.
 
 ## Decision
 
@@ -138,8 +139,8 @@ variables:
   `BASH_ENV` or a function that ran before its first line, and a list of
   variables to drop is never complete.
 
-[asl-0001]:
-  https://github.com/flakeyard/action-shell-lib/blob/main/docs/adr/records/0001-shell-library.md
+[lib-actions-0001]:
+  https://github.com/flakeyard/lib-actions/blob/main/docs/adr/records/0001-shell-library.md
 [fy-0030]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0030-actions-workflows-and-release-bot.md
 [fy-0035]:

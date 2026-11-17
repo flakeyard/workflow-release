@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Checks of the last run of a script, on top of checks.sh of action-shell-lib.
+# Checks of the last run of a script, on top of checks.sh of lib-actions.
 # Source this file after case.sh.
 # shellcheck disable=SC2154 # work and current come from the library.
 

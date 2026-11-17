@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Unit tests of the scripts in .github/actions, with the harness and the stubs
-# of action-shell-lib, and static tests of the workflows. The suites in tests/unit mirror the actions: one file
+# of lib-actions, and static tests of the workflows. The suites in tests/unit mirror the actions: one file
 # per action, or a directory with one file per script when an action has
 # several; tests/unit/workflows has one file per workflow and needs yq.
 # Usage: tests/run.sh
