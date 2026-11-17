@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.9](https://github.com/flakeyard/workflow-release/compare/v0.2.8...v0.2.9) (2026-11-17)
+
+
+### Bug Fixes
+
+* take the shell library from lib-actions ([#97](https://github.com/flakeyard/workflow-release/issues/97)) ([b9c8043](https://github.com/flakeyard/workflow-release/commit/b9c8043680c018940d37c239ab8a664614023813))
+
 ## [0.2.8](https://github.com/flakeyard/workflow-release/compare/v0.2.7...v0.2.8) (2026-11-15)
 
 
