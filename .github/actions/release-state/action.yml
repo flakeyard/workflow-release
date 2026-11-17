@@ -10,8 +10,10 @@ inputs:
       whose modules the scripts source.
     required: true
   token:
+    description: Token of gh for the GitHub API.
     required: true
   manifest-file:
+    description: release-please manifest file.
     required: true
   created:
     description: release_created of release-please in this run.

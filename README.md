@@ -411,7 +411,7 @@ installs the git hooks each time the shell starts. The container runs
 `direnv block` before you check out a branch you do not trust, since entering
 the directory runs that branch's shell hook. Commit inside the container, whose
 Nix store has the tools of the hooks. The checks below run in it as in CI; tools
-that the shell does not have come from nixpkgs, such as `nix run nixpkgs#typos`.
+that the shell does not have come from nixpkgs, such as `nix run nixpkgs#reuse`.
 Nix on the host works as well: `direnv allow` or `nix develop` gives the same
 shell.
 
@@ -488,11 +488,21 @@ imports atoms ([FY-0038][fy-0038]): [atom-workflows][atom-workflows] lints the
 workflows and actions with actionlint and zizmor (`checks.workflows`).
 [atom-nix][atom-nix] lints the Nix files with statix, deadnix and its hook of
 relative paths (`checks.nix`), [atom-shell][atom-shell] lints the shell scripts
-with shellcheck (`checks.shell`), and treefmt checks their formatting with
-nixfmt and shfmt (`checks.treefmt`).
-[`scorecard.yaml`](.github/workflows/scorecard.yaml) runs OpenSSF Scorecard
-through [workflow-scorecard](https://github.com/flakeyard/workflow-scorecard).
-The repository releases itself through
+with shellcheck (`checks.shell`), [atom-markdown][atom-markdown] lints the
+Markdown files with markdownlint and checks their links inside the repository
+with lychee (`checks.markdown`), [atom-text][atom-text] checks the spelling of
+every file with typos and its line endings, final newline and trailing
+whitespace with editorconfig-checker (`checks.text`),
+[atom-data-formats][atom-data-formats] lints the YAML, JSON and TOML files with
+yamllint, biome and taplo and the metadata of the actions and of Renovate with
+check-jsonschema (`checks.data-formats`), and treefmt checks the formatting with
+nixfmt, shfmt, prettier and taplo (`checks.treefmt`). The weekly run of
+workflow-check also checks every link of the Markdown files and runs the audits
+of zizmor that need the network, with the apps `markdown-links` and
+`workflows-online`. [`scorecard.yaml`](.github/workflows/scorecard.yaml) runs
+OpenSSF Scorecard through
+[workflow-scorecard](https://github.com/flakeyard/workflow-scorecard). The
+repository releases itself through
 [`release-self.yaml`](.github/workflows/release-self.yaml), whose release pull
 requests are checked by a dispatched run of `test.yaml`. Before a pull request,
 run `tests/run.sh` and `nix flake check`. The design follows
@@ -508,16 +518,18 @@ Following
 [FY-0022](https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0022-bootstrap.md),
 some checks of this repository are not released yet. Until they are:
 
-- prettier, markdownlint, typos and REUSE run locally before every pull request;
-  the atoms will provide them.
+- REUSE runs locally before every pull request; an atom will provide it.
 
 ## License
 
 [MIT](LICENSE).
 
 [lib-actions]: https://github.com/flakeyard/lib-actions
+[atom-data-formats]: https://github.com/flakeyard/atom-data-formats
+[atom-markdown]: https://github.com/flakeyard/atom-markdown
 [atom-nix]: https://github.com/flakeyard/atom-nix
 [atom-shell]: https://github.com/flakeyard/atom-shell
+[atom-text]: https://github.com/flakeyard/atom-text
 [atom-workflows]: https://github.com/flakeyard/atom-workflows
 [adr-0001]:
   docs/adr/records/0001-run-the-steps-of-internal-actions-through-run-step-sh.md

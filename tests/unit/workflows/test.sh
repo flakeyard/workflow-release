@@ -35,7 +35,7 @@ if require_yq .github/workflows/test.yaml; then
   ci_test "check forbids configuration files of atom tools (FY-0037)" \
     '.jobs.check.with["forbid-tool-configs"] == true'
   ci_test "check builds the root flake with the checks of its atoms and expects the flakeyard presets" \
-    '.jobs.check.with | .flake == "." and .["expect-checks"] == "[\"nix\",\"shell\",\"treefmt\",\"workflows\"]" and .["renovate-presets"] == "[\"flakeyard/renovate-config\"]"'
+    '.jobs.check.with | .flake == "." and .["expect-checks"] == "[\"data-formats\",\"markdown\",\"nix\",\"shell\",\"text\",\"treefmt\",\"workflows\"]" and .["renovate-presets"] == "[\"flakeyard/renovate-config\"]"'
   ci_test "an edit of a pull request cancels no run" \
     '.concurrency["cancel-in-progress"] | contains("github.event.action != '"'edited'"'")'
   ci_test "dispatched and edited pull requests are checked" \

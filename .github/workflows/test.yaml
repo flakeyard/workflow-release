@@ -54,7 +54,10 @@ jobs:
     with:
       needs: ${{ toJSON(needs) }}
       flake: .
-      expect-checks: '["nix","shell","treefmt","workflows"]'
+      expect-checks: '["data-formats","markdown","nix","shell","text","treefmt","workflows"]'
+      # Weekly, the apps that need the network: the links of the Markdown files
+      # and the online audits of the workflows.
+      apps: ${{ github.event_name == 'schedule' && '["markdown-links","workflows-online"]' || '[]' }}
       renovate-presets: '["flakeyard/renovate-config"]'
       # The default configurations of the atoms apply (FY-0037).
       forbid-tool-configs: true

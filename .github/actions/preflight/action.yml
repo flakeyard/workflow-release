@@ -21,8 +21,10 @@ inputs:
       job does not use, so that has-key says nothing.
     default: "true"
   config-file:
+    description: release-please configuration file.
     required: true
   manifest-file:
+    description: release-please manifest file.
     required: true
 outputs:
   skip:

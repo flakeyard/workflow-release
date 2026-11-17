@@ -11,8 +11,10 @@ inputs:
       whose modules the scripts source.
     required: true
   token:
+    description: Token of gh for the GitHub API.
     required: true
   manifest-file:
+    description: release-please manifest file.
     required: true
   environment:
     description: Environment of the job that releases; empty when there is none.

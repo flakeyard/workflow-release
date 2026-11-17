@@ -9,10 +9,13 @@ inputs:
       whose modules the scripts source.
     required: true
   token:
+    description: Token with which release-please opens or updates the release pull request.
     required: true
   config-file:
+    description: release-please configuration file.
     required: true
   manifest-file:
+    description: release-please manifest file.
     required: true
 runs:
   using: composite

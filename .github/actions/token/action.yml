@@ -18,6 +18,7 @@ inputs:
     default: ""
 outputs:
   token:
+    description: Token of the App, or GITHUB_TOKEN without an App.
     value: ${{ steps.app.outputs.token || github.token }}
 runs:
   using: composite
