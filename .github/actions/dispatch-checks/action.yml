@@ -9,6 +9,7 @@ inputs:
       whose modules the scripts source.
     required: true
   check-workflow:
+    description: Check workflow to start on the release pull request, such as test.yaml.
     required: true
 runs:
   using: composite
