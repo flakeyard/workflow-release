@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.10](https://github.com/flakeyard/workflow-release/compare/v0.2.9...v0.2.10) (2026-11-24)
+
+
+### Bug Fixes
+
+* **deps:** update actions/create-github-app-token action to v3.4.0 ([#124](https://github.com/flakeyard/workflow-release/issues/124)) ([f09790e](https://github.com/flakeyard/workflow-release/commit/f09790edae14fbc9e101b58299f4174ad1608ae3))
+
 ## [0.2.9](https://github.com/flakeyard/workflow-release/compare/v0.2.8...v0.2.9) (2026-11-17)
 
 
